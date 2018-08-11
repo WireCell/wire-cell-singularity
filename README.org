@@ -32,7 +32,7 @@ development but [[./Singularity.externals]] would provide a more pure
 basis.
 
 
-** Co-develop WCT and WC/LS integration layer (BS included)
+** Co-develop WCT and WC/LS integration layer
 
 Use [[./Singularity.wclsdev]].  This uses a base of Ubuntu 16.04 and /art/
 and LArSoft UPS binaries.

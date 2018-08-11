@@ -23,7 +23,11 @@ git submodule update
 ./wcb configure --prefix=/usr/local --with-jsonnet=/usr/local --with-eigen-include=/usr/include/eigen3
 ./wcb --notests
 ./wcb install
+rm -rf build
+
 
 %environment
 WIRECELL_DATA=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
 export WIRECELL_DATA
+LD_LIBRARY_PATH=/usr/local/lib
+export LD_LIBRARY_PATH
