@@ -22,9 +22,9 @@ git submodule init
 git submodule update
 ./wcb configure --prefix=/usr/local --with-jsonnet=/usr/local --with-eigen-include=/usr/include/eigen3
 ./wcb --notests
-./wcb install
+./wcb install  --notests
 rm -rf build
-
+rm -f util/test_json*
 
 %environment
 WIRECELL_DATA=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
