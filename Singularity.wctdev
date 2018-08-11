@@ -1,0 +1,29 @@
+Bootstrap: localimage
+From: externals.simg
+
+%runscript
+
+exec echo "The runscript is the containers default runtime command!"
+
+%post
+
+echo "Post"
+
+mkdir -p /usr/local/share/wirecell
+cd /usr/local/share/wirecell
+git clone https://github.com/WireCell/wire-cell-cfg.git cfg
+git clone https://github.com/WireCell/wire-cell-data.git data
+
+cd /usr/local/src
+git clone https://github.com/WireCell/wire-cell-build.git
+cd wire-cell-build
+./switch-git-urls
+git submodule init
+git submodule update
+./wcb configure --prefix=/usr/local --with-jsonnet=/usr/local --with-eigen-include=/usr/include/eigen3
+./wcb --notests
+./wcb install
+
+%environment
+WIRECELL_DATA=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
+export WIRECELL_DATA

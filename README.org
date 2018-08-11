@@ -1,0 +1,38 @@
+#+TITLE: Wire-Cell Toolkit Singularity Containers
+
+This area holds [[https://www.sylabs.io/][Singularity]] recipes for producing containers which
+provide run-time or development environments for Wire-Cell Toolkit and
+related software.
+
+* What do you want to do?
+
+** Want a very basic Ubuntu 18.04 development environment.
+
+Use [[./Singularity.ubu1804base]]. 
+
+#+BEGIN_EXAMPLE
+  $ sudo singularity build ubu1804base.simg Singularity.ubu1804base
+#+END_EXAMPLE
+
+** Want additional external packages not part of Ubuntu 
+
+This includes Jsonnet and ROOT.
+
+Use [[./Singularity.externals]].  This requires the above image.
+
+#+BEGIN_EXAMPLE
+  $ sudo singularity build externals.simg Singularity.externals
+#+END_EXAMPLE
+
+** Run the latest WCT development version
+
+Use [[./Singularity.wctdev]].  This requires the above image.  It builds
+WCT from source.  It can be used as a basis for your own WCT
+development but [[./Singularity.externals]] would provide a more pure
+basis.
+
+
+** Co-develop WCT and WC/LS integration layer (BS included)
+
+Use [[./Singularity.wclsdev]].  This uses a base of Ubuntu 16.04 and /art/
+and LArSoft UPS binaries.
