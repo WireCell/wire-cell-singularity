@@ -25,11 +25,18 @@ root_version=v6_12_06a
 # the UPS "qualifiers"
 ups_quals=e15:prof
 
+echo "Before UPS setup"
+env | grep -v TERMCAP| sort
+echo "Doing UPS setup"
 source /usr/local/ups/setup
-
-env
+echo "After UPS setup"
+env |grep -v TERMCAP | sort
 
 if [ ! -d /usr/local/ups/wirecell/${wirecell_devel_version}.version ] ; then
+    echo "Declaring UPS wirecell product: \"${wirecell_devel_version}\""
+    set -x
+    mkdir -p /usr/local/ups/wirecell/${wirecell_devel_version}/ups
+    cp /usr/local/ups/wirecell/${wirecell_release_version}/ups/wirecell.table /usr/local/ups/wirecell/${wirecell_devel_version}/ups/
     ups declare wirecell ${wirecell_devel_version} \
         -f $(ups flavor) \
         -q ${ups_quals} \
@@ -37,15 +44,25 @@ if [ ! -d /usr/local/ups/wirecell/${wirecell_devel_version}.version ] ; then
         -z /usr/local/ups \
         -U ups  \
         -m wirecell.table
-    mkdir -p /usr/local/ups/wirecell/${wirecell_devel_version}/ups
-    cp /usr/local/ups/wirecell/${wirecell_release_version}/ups/wirecell.table /usr/local/ups/wirecell/${wirecell_devel_version}/ups
+    set +x
 fi
 
 # hack alert, remove garbage installed by official scripts
+ls -l /usr/local/ups/
+ls -l /usr/local/ups/wirecell/
+ls -l /usr/local/ups/wirecell/${wirecell_release_version}/
 junk=/usr/local/ups/wirecell/${wirecell_release_version}/wirecell-0.7.0/build/
 if [ -d "$junk" ] ; then
+    echo "remove junk included in released wirecell UPS product: $junk"
     rm -rf "$junk"
 fi
+
+echo "Setting up wirecell development version ${wirecell_devel_version}"
+setup wirecell ${wirecell_devel_version} -q ${ups_quals} || exit 0
+echo "Setting up root version ${root_version}"
+setup root ${root_version} -q ${ups_quals} || exit 0
+
+env |grep -v TERMCAP | sort
 
 ## not included, use system git
 # setup git
@@ -56,10 +73,6 @@ cd /usr/local/share/wirecell
 git clone https://github.com/WireCell/wire-cell-cfg.git cfg
 git clone https://github.com/WireCell/wire-cell-data.git data
 
-setup wirecell ${wirecell_devel_version} -q ${ups_quals}
-setup root ${root_version} -q ${ups_quals}
-
-env
 
 echo "Getting WCT source, building and installing"
 cd /usr/local/src
@@ -85,9 +98,10 @@ git submodule update
     --prefix="/usr/local/ups/wirecell/${wirecell_devel_version}/$(ups flavor)"
 
 
-./wcb install  --notests || exit 1
+./wcb -p install  --notests || exit 1
+ls -l /usr/local/share/wirecell/data /usr/local/share/wirecell/cfg
 export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
-./wcb --alltests
+./wcb -p --alltests
 rm -rf build
 # need to fix these tests....
 rm -f util/test_*json*

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# This is a bash rc file for *running* the WC/LS (Wire-Cell Toolkit +
+# LArSoft) Singularity container.  It uses a released version of WCT.
+
+source /usr/local/ups/setup
+setup larsoft v06_82_00 -q e15:prof
+export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
+
+# my prompt command doesn't translate into the container well 
+unset PROMPT_COMMAND
+PS1='[$SINGULARITY_NAME]\u@\h:\w> '
+
+

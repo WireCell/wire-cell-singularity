@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# This is a bash rc file for running the WC/LS (Wire-Cell Toolkit +
+# LArSoft) Singularity container
+

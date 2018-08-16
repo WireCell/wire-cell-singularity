@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# This is a bash rc file or setting up a WCT dev environment.  It
+# doesn't do much.
+
+export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
+
+unset PROMPT_COMMAND
+PS1='[$SINGULARITY_NAME]\u@\h:\w> '
+
+
