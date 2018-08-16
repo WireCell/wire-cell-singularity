@@ -1,38 +1,158 @@
 #+TITLE: Wire-Cell Toolkit Singularity Containers
 
 This area holds [[https://www.sylabs.io/][Singularity]] recipes for producing containers which
-provide run-time or development environments for Wire-Cell Toolkit and
-related software.
+provide run-time or development environments for Wire-Cell Toolkit in some different contexts.
+
+* Caveats for building images
+
+** Native support
+
+Besides ~singularity~ you will need to provide local installations of:
+
+- ~debootstrap~ :: to build Ubuntu images
+- ~yum~ :: to build Scientific Linux images
+
+** Disk space
+
+Substantial disk space is required (especially for the SL/UPS images).
+If you are short on disk space for ~/tmp~, you may want to do something
+like:
+
+#+BEGIN_EXAMPLE
+sudo mkdir -p /srv/singularity/tmp
+sudo chmod 777 /srv/singularity/tmp
+export SINGULARITY_TMPDIR=/srv/singularity/tmp
+export SINGULARITY_LOCALCACHEDIR=/srv/singularity/tmp/$USER
+#+END_EXAMPLE
 
 * What do you want to do?
 
-** Want a very basic Ubuntu 18.04 development environment.
+Each ~Singularity.*~ file builds an image.  Also offered are the
+binary results built at some point in the past.
 
-Use [[./Singularity.ubu1804base]]. 
+** Want to do stand-alone Wire-Cell toolkit dev or running
 
-#+BEGIN_EXAMPLE
-  $ sudo singularity build ubu1804base.simg Singularity.ubu1804base
-#+END_EXAMPLE
-
-** Want additional external packages not part of Ubuntu 
-
-This includes Jsonnet and ROOT.
-
-Use [[./Singularity.externals]].  This requires the above image.
+Download an image from [[https://www.phy.bnl.gov/~bviren/simg/wctdev/]] or build it yourself with  [[./Singularity.wctdev]].
 
 #+BEGIN_EXAMPLE
-  $ sudo singularity build externals.simg Singularity.externals
+  $ wget https://root.cern.ch/download/root_v6.14.02.Linux-ubuntu18-x86_64-gcc7.3.tar.gz
+  $ sudo singularity build wctdev.simg Singularity.wctdev
 #+END_EXAMPLE
 
-** Run the latest WCT development version
+This provides:
 
-Use [[./Singularity.wctdev]].  This requires the above image.  It builds
-WCT from source.  It can be used as a basis for your own WCT
-development but [[./Singularity.externals]] would provide a more pure
-basis.
+- minimal Ubuntu 18.04 image (56MB)
+- build environment and run time dependencies from Ubuntu
+- Jsonnet from built from source
+- ROOT as binaries from CERN.
+- WCT data and cfg files
+- A copy of WCT source from ~master~ at time of image build
+- A built version of above source in ~/usr/local/opt/wct/~
+
+Notes/caveats:
+
+- Produces 717 MB image, takes about 300 seconds
+- Pre-download the required ROOT binary because the download can be
+  really slow at times (and fast others).  If you must rebuild
+  multiple times due to problems it gets annoying really fast to wait.
 
 
-** Co-develop WCT and WC/LS integration layer
+*** Running provided WCT version
 
-Use [[./Singularity.wclsdev]].  This uses a base of Ubuntu 16.04 and /art/
-and LArSoft UPS binaries.
+You can run the WCT version provided.  The various ~PATH~ variables
+are not set so that when this image is used for WCT development this
+installed version will no interfere.
+
+#+BEGIN_EXAMPLE
+  $ singularity exec wctdev.simg bash
+  $ export LD_LIBRARY_PATH=/usr/local/opt/wct/lib:$LD_LIBRARY_PATH
+  $ export PATH=/usr/local/opt/wct/bin:$PATH
+  $ which wire-cell
+  /usr/local/opt/wct/bin/wire-cell
+  $ wire-cell --help
+  Options:
+    -h [ --help ]         wire-cell [options] [arguments]
+    -a [ --app ] arg      application component to invoke
+    -c [ --config ] arg   provide a configuration file
+    -p [ --plugin ] arg   specify a plugin as name[:lib]
+    -V [ --ext-str ] arg  specify a Jsonnet external variable=value
+    -C [ --ext-code ] arg specify a Jsonnet external variable=code
+    -P [ --path ] arg     add to JSON/Jsonnet search path
+#+END_EXAMPLE
+
+*** Developing WCT using image to provide environment
+
+For the most part, simply enter the image and develop as one in a
+native development environment.   Here is an example
+
+#+BEGIN_EXAMPLE
+  $ git clone --recursive git@github.com:WireCell/wire-cell-build.git wct
+  $ singularity exec wctdev.simg bash
+  $ cd wct/
+  $ ./wcb configure --prefix=`pwd`/install --with-jsonnet=/usr/local --with-eigen-include=/usr/include/eigen3
+  $ ./wcb --notests install
+#+END_EXAMPLE
+
+Notes:
+
+ - SSH agent authentication did not immediately work from inside the container so do ~git~ actions from a shell outside the container.
+ - Do *not* set ~PATH~ variables as in [[Running provided WCT version]] in order to avoid any potential of version shear.
+
+In order to run this build or run the build tests the ~PATH~ variables
+need to be set to the configured installation location.
+
+#+BEGIN_EXAMPLE
+  $ export LD_LIBRARY_PATH=`pwd`/install/lib:$LD_LIBRARY_PATH
+  $ export PATH=`pwd`/install/bin:$PATH
+  $ ./wcb --alltests
+#+END_EXAMPLE
+
+In principle, all tests should pass but there may be one or two edge
+cases.  For example, the ROOT binary doesn't include PyROOT to
+~test_units.py~ may fail.
+
+
+** Want to co-develop WC and WC/LS
+
+Download [[https://www.phy.bnl.gov/~bviren/simg/wclsdev/]] or build it
+yourself with [[./Singularity.wclsdev]].
+
+#+BEGIN_EXAMPLE
+  $ sudo singularity build wclsdev.simg Singularity.wclsdev
+#+END_EXAMPLE
+
+This provides
+
+- minimal Ubuntu 16.04 image with a few extra system packages
+- larsoft as UPS binaries include ~larwirecell~
+- latest production WCT as the ~wirecell~ UPS product
+- a copy of latest WCT source from github
+- build of this source against the above as a ~dev~ version of UPS product ~wirecell~
+
+Notes/caveats:
+
+- Ubuntu 16.04 is used because FNAL does not yet support 18.04 for UPS
+  binaries.
+- The Singularity build will take FOREVER due to downloading a
+  gajillion jigglebytes from FNAL's SciSoft server.
+
+*** Update WCT
+
+To update WCT to use with a dev version of WC/LS you should "bind"
+some directory that you can write to.
+
+#+BEGIN_EXAMPLE
+  $ mkdir wct-ups-dev
+  $ singularity exec --bind wct-ups-dev:/usr/local/ups/wirecell/dev/Linux64bit+3.10-2.17-e15-prof wclsdev.simg bash
+#+END_EXAMPLE
+
+Now ~cd~ into your native working directory which has the WCT source checked out and configure it to install into the bind mount.
+
+#+BEGIN_EXAMPLE
+  $ cd wct
+  $ source /usr/local/ups/setup
+  $ setup wirecell dev -q e15:prof
+  $ echo $WIRECELL_FQ_DIR 
+  /usr/local/ups/wirecell/dev/Linux64bit+4.4-2.17-sl7-5-e15-prof
+  $ ./waftools/wct-configure-for-ups.sh ups
+#+END_EXAMPLE
