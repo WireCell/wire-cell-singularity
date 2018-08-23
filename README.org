@@ -11,7 +11,7 @@ When you see:
   c$ echo "this command runs in container environment"
 #+END_EXAMPLE
 
-* What do you want to do?
+* What do you want to do with Wire-Cell Toolkit?
 
 Each ~Singularity.*~ file builds an image.  Also offered are the
 binary results built at some point in the past.
@@ -86,6 +86,11 @@ In principle, all tests should pass but there may be one or two edge
 cases.  For example, the ROOT binary doesn't include PyROOT to
 ~test_units.py~ may fail.
 
+* What do you want to do with WC/LS?
+
+WC/LS = Wire-Cell Toolkit + /art/ and LArSoft.  It has its own image,
+binding script and rc helper file.
+
 ** I wanna run WC/LS jobs
 
 Download this relatively bloated (4.4 GB) image:
@@ -129,37 +134,31 @@ Notes/caveats:
 
 ** I wanna build a newer ~wirecell~ UPS product
 
-The container is read-only so you must bind-mount a native directory
-that you can write to over the prepared location of the ~dev~ version
-of the ~wirecell~ UPS product.
-
-#+BEGIN_EXAMPLE
-  n$ mkdir wct-ups-install
-  n$ ./bind-wct.sh wclsdev.simg wct-ups-install [rcfile]
-  c$ ./update-wct.sh wct
-#+END_EXAMPLE
-
-Notes:
-
-- [[./bind-wct.sh]] :: will start the container and bind the directory given in the final arg over the ~dev~ area for the ~wirecell~ UPS "product".  A final optional argument may be a Bash rcfile.  Some examples are given.
-- [[./update-wct.sh]] :: should be run inside the container and will assume the given directory holds a checked out version of the WCT source which it will configure, build, install and test.
-
-** I wanna develop WC/LS and don't waste my time
-
-This assumes the following native directories can be written to:
-
- - ~wct~ :: where the WCT source goes
- - ~lsdev~ :: where the mrb/LS (~larwirecell~) source goes
- - ~wct-ups-dev-install~ :: space for the ~dev~ version of the ~wirecell~ UPS product
+The container is read-only and writable storage is needed to hold any
+UPS products that want to be built.  In principle, you can just use
+native file system like above.  However, instead, we bind some native
+directory to a well known location to make the helper scripts simpler.
 
 #+BEGIN_EXAMPLE
   n$ git clone --recursive git@github.com:WireCell/wire-cell-build.git wct
-  n$ ./bind-wct.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
-
+  n$ ./bind-wcls.sh wclsdev.simg ups-dev-products wclsdev.rc
+  
+  c$ wclsdev-ups-declare
   c$ cd wct
   c$ wclsdev-wct-configure
   c$ ./wcb -p --notests install
-  c$ cd ..
+#+END_EXAMPLE
+
+** Wait, what?
+
+Read [[./wclsdev.rc]].
+
+** I wanna develop WC/LS 
+
+Build a newer ~wirecell~ UPS product like above and then:
+
+#+BEGIN_EXAMPLE
+  n$ ./bind-wcls.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
 
   c$ wclsdev-init lsdev
   c$ wclsdev-srcs
@@ -169,19 +168,70 @@ This assumes the following native directories can be written to:
   c$ mrb build
 #+END_EXAMPLE
 
-After a session you can reenter the image and get set up with:
+Subsequent fresh sessions can be set up with:
 
 #+BEGIN_EXAMPLE
   n$ ./bind-wct.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
 
   c$ wclsdev-setup lsdev
-  c$ which wire-cell
-  c$ which art
 #+END_EXAMPLE
 
 ** I wanna develop WC/LS and understand what I'm doing
 
 Read [[./wclsdev.rc]].
+
+** The UPS externals are old and stupid, give me freshness
+
+There's no special instructions here, other than to use the bind mount
+on ~/usr/local/ups-dev~ in which to install any additional UPS products.
+
+Leading up to WCT 0.8.0 a new version of Jsonnet is needed.  Here is
+what was done.  
+
+#+BEGIN_EXAMPLE
+  c$ cd $wclsdev_upsdev
+  c$ git clone ssh://p-build-framework@cdcvs.fnal.gov/cvs/projects/build-framework-jsonnet-ssi-build jsonnet-ssi-build
+  c$ cd jsonnet-ssi-build
+  c$ ./bootstrap.sh $wclsdev_upsdev
+  c$ cd $wclsdev_upsdev/jsonnet/v0_9_3_c/
+  c$ ./build_jsonnet.sh $wclsdev_upsdev e15 prof
+  c$ ./Linux64bit+4.4-2.23-e15-prof/bin/jsonnet --version
+  Jsonnet commandline interpreter v0.9.3
+#+END_EXAMPLE
+
+That just rebuilt the last version.  To update, hack the scripts in the shim package.  If you are lucky you'll just need to tweak the UPS spelling of the version in the variables:
+
+#+BEGIN_EXAMPLE
+origpkgver=v0_11_2
+pkgver=${origpkgver}
+#+END_EXAMPLE
+
+in files ~build_jsonnet.sh~ and ~bootstrap.sh~.  Repeating the two
+scripts as above should hopefully succeed.
+
+#+BEGIN_EXAMPLE
+  c$ ./Linux64bit+4.4-2.23-e15-prof/bin/jsonnet --version
+  Jsonnet commandline interpreter v0.11.2
+#+END_EXAMPLE
+
+You must now find mention of the old version in various places, in particular:
+
+#+BEGIN_EXAMPLE
+  n$ emacs $wclsdev_upsdev/wirecell/wclsdev/ups/wirecell.table
+#+END_EXAMPLE
+
+Strictly speaking you just need to modify the stanza matching the
+quals to be used.  If you've already set up your environment for that
+version of ~wirecell~ you can cycle:
+
+#+BEGIN_EXAMPLE
+  c$ unsetup wirecell
+  c$ setup wirecell wclsdev -q e15:prof
+  c$ which jsonnet
+  c$ /usr/local/ups-dev/jsonnet/v0_11_2/Linux64bit+4.4-2.23-e15-prof/bin/jsonnet
+#+END_EXAMPLE
+
+You'll need to rebuild the ~lsdev~ area.
 
 * (More) Caveats for building images
 

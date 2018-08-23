@@ -4,7 +4,8 @@
 # Toolkit + LArSoft) Singularity container.
 
 source /usr/local/ups/setup
-setup larsoft v06_82_00 -q e15:prof
+
+# set this, but warning that calling "setup" with the "wirecell" UPS product will tromp on it.
 export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
 
 # My dynamic prompt command doesn't translate into the container well,
@@ -15,6 +16,18 @@ PS1='[$SINGULARITY_NAME:$WIRECELL_VERSION]\u@\h:\w> '
 # The locale sitch of the image is a bit fubar and this makes Perl
 # angry.  Sorry, it's an ASCII world.
 export LANG=C
+
+
+# the version string to use for the development "wirecell" UPS product
+wclsdev_wcver="wclsdev"
+
+wclsdev_upsdev=/usr/local/ups-dev
+if [ -d $wclsdev_upsdev -a ! -d $wclsdev_upsdev/.upsfiles ] ; then
+    echo "priming development UPS products area: $wclsdev_upsdev"
+    cp -a /usr/local/ups/.up* $wclsdev_upsdev/
+fi
+PRODUCTS=$wclsdev_upsdev:$PRODUCTS
+
 
 # Return a version for newest package
 wclsdev-ups-version () {
@@ -29,15 +42,43 @@ wclsdev-ups-quals () {
 }
     
 
+# make some UPS product area, default to wirecell / dev
+wclsdev-ups-declare () {
+    local pkg="${1:-wirecell}"
+    local ver="${1:-$wclsdev_wcver}"
+    local upsdir="${wclsdev_upsdev}/${pkg}/${ver}/ups"
+
+    if [ -d "$upsdir" ] ; then  # fixme: premature test?
+        echo "wclsdev-ups-declare: already declared: $upsdir"
+        return
+    fi
+    mkdir -p $upsdir
+
+    local relver=$(PRODUCTS=/usr/local/ups wclsdev-ups-version $pkg)
+    local relquals=$(PRODUCTS=/usr/local/ups wclsdev-ups-quals $pkg)
+
+    cp "/usr/local/ups/${pkg}/${relver}/ups/${pkg}.table" "$upsdir"
+    ups declare wirecell ${ver} \
+        -f $(ups flavor) \
+        -q ${relquals} \
+        -r "${pkg}/${ver}" \
+        -z $wclsdev_upsdev \
+        -U ups  \
+        -m "${pkg}.table"
+    set +x
+    
+}
+
 # configure WCT source for building.
 wclsdev-wct-configure () {
+    ver="${1:-$wclsdev_wcver}"
     if [ ! -f wcb ] ; then
         echo "wclsdev-wct-configure: must run from inside your WCT source area"
         return
     fi
     if [ "$WIRECELL_VERSION" != "dev" ] ; then
-        echo "wclsdev-wct-configure: switching to 'dev' version of 'wirecell' UPS product"
-        setup wirecell dev -q $(wclsdev-ups-quals)
+        echo "wclsdev-wct-configure: switching to \"$ver\" version of 'wirecell' UPS product"
+        setup wirecell $ver -q $(wclsdev-ups-quals)
     fi
     ./wcb configure \
           --with-tbb=no \
@@ -148,8 +189,8 @@ wclsdev-setup () {
     
     # this system is just utter crap
     if [ -f srcs/larwirecell/ups/product_deps ] ; then
-        if [ -n "$(grep '^wirecell\b.*dev' srcs/larwirecell/ups/product_deps)" ] ; then
-            echo "wclsdev-setup: you are using WCT dev, must 'unsetup wirecell' now"
+        if [ -n "$(grep '^wirecell\b.*'$wclsdev_wcver srcs/larwirecell/ups/product_deps)" ] ; then
+            echo "wclsdev-setup: you are using WCT $wclsdev_wcver, must 'unsetup wirecell' now"
             unsetup wirecell
         fi
     fi
@@ -166,7 +207,7 @@ wclsdev-setup () {
 wclsdev-fsck-ups () {
     local base="${1:-$MRB_TOP}"; shift
     local pkg="${1:-wirecell}"; shift;
-    local ver="${1:-dev}"; shift
+    local ver="${1:-$wclsdev_wcver}"; shift
 
     if [ ! -d "$base/srcs/" ] ; then
         echo "wclsdev-fsck-ups: this doesn't look like an mrb source area: $base"
@@ -183,3 +224,4 @@ wclsdev-fsck-ups () {
     echo -e "\tunsetup $pkg"
 
 }    
+
