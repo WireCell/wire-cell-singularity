@@ -26,7 +26,7 @@ echo "Adding more Ubuntu"
 sed -i 's/$/ universe multiverse restricted/' /etc/apt/sources.list
 apt-get update
 apt-get upgrade
-apt-get -y install git wget curl make cmake bison lbzip2 zlib1g-dev lsb-release pkg-config python emacs vim libssl-dev time
+apt-get -y install git wget curl make cmake bison lbzip2 zlib1g-dev lsb-release pkg-config python emacs jq vim libssl-dev time
 apt-get clean
 
 

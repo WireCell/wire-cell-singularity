@@ -1,5 +1,185 @@
 #!/bin/bash
 
-# This is a bash rc file for running the WC/LS (Wire-Cell Toolkit +
-# LArSoft) Singularity container
+# This is a bash rc file for developing in the WC/LS (Wire-Cell
+# Toolkit + LArSoft) Singularity container.
 
+source /usr/local/ups/setup
+setup larsoft v06_82_00 -q e15:prof
+export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
+
+# My dynamic prompt command doesn't translate into the container well,
+# drop down to static PS1
+unset PROMPT_COMMAND
+PS1='[$SINGULARITY_NAME:$WIRECELL_VERSION]\u@\h:\w> '
+
+# The locale sitch of the image is a bit fubar and this makes Perl
+# angry.  Sorry, it's an ASCII world.
+export LANG=C
+
+# Return a version for newest package
+wclsdev-ups-version () {
+    local pkg="${1:-larsoft}"
+    ups list -aK+ "$pkg" | tail -1 | awk '{print $2}' | sed -e 's/"//g'
+}
+
+# Return the quals for a most reacent package
+wclsdev-ups-quals () {
+    local pkg="${1:-larsoft}"
+    ups list -aK+ "$pkg" | tail -1 | awk '{print $4}' | sed -e 's/"//g'
+}
+    
+
+# configure WCT source for building.
+wclsdev-wct-configure () {
+    if [ ! -f wcb ] ; then
+        echo "wclsdev-wct-configure: must run from inside your WCT source area"
+        return
+    fi
+    if [ "$WIRECELL_VERSION" != "dev" ] ; then
+        echo "wclsdev-wct-configure: switching to 'dev' version of 'wirecell' UPS product"
+        setup wirecell dev -q $(wclsdev-ups-quals)
+    fi
+    ./wcb configure \
+          --with-tbb=no \
+          --with-jsoncpp="$JSONCPP_FQ_DIR" \
+          --with-jsonnet="$JSONNET_FQ_DIR" \
+          --with-eigen-include="$EIGEN_DIR/include/eigen3" \
+          --with-root="$ROOTSYS" \
+          --with-fftw="$FFTW_FQ_DIR" \
+          --with-fftw-include="$FFTW_INC" \
+          --with-fftw-lib="$FFTW_LIBRARY" \
+          --boost-includes="$BOOST_INC" \
+          --boost-libs="$BOOST_LIB" \
+          --boost-mt \
+          --prefix=$WIRECELL_FQ_DIR
+    echo "wclsdev-wct-configure: will install to $WIRECELL_FQ_DIR"
+    echo -e "\tready to run:\n\t./wcb -p --notests install"
+}
+
+
+# Initialize a development area.  This stops before initializing any
+# source.  Warning: this modifies your environment.
+wclsdev-init () {
+    local base="$1";shift
+    local lsver="${1:-$(wclsdev-ups-version larsoft)}"; shift
+    local quals="${1:-$(wclsdev-ups-quals   larsoft)}"; shift
+    local quals_="$(echo $quals | tr ':' '_')"
+
+    if [ ! -d "$base" ] ; then
+        mkdir "$base"
+    else
+        echo "wclsdev-init: reusing existing base: $base"
+    fi
+    pushd "$base" > /dev/null 2>&1
+
+    echo "wclsdev-init: modifying your environment for mrb and larsoft $lsver -q $quals"
+    export MRB_PROJECT=larsoft
+    setup mrb
+    setup larsoft "$lsver" -q "$quals"
+
+    local localsetup="localProducts_larsoft_${lsver}_${quals_}/setup"
+    if [ ! -f "$localsetup" ] ; then
+        mrb newDev
+    else
+        echo "wclsdev-init: already inoculated with mrb: $localsetup"
+    fi
+    echo "wclsdev-init: modifying your environment for local dev products"
+    source "$localsetup"
+    popd > /dev/null 2>&1
+}
+
+    
+# Add a source package to an development area.  You must has run
+# wcldev-init first.
+wclsdev-srcs () {
+    local pkg="${1:-larwirecell}"; shift
+    local tag="${1:-${USER}_wclsdev}"; shift
+    local ver="${1:-$(wclsdev-ups-version $pkg)}"; shift
+
+    if [ -z "$MRB_SOURCE" ] ; then
+        echo "wclsdev-srcs: you must have run wclsdev-init first"
+        return
+    fi
+
+    pushd "${MRB_SOURCE}" > /dev/null 2>&1
+    if [ -d "$pkg" ] ; then
+        echo "wclsdev-srcs: package source directory already exists"
+        return
+    fi
+    mrb g "$pkg"
+    cd "$pkg"
+    local branch="${ver}-branch"
+    local feat="feature/${tag}"
+    if git branch -a | grep "\b${feat}\b" > /dev/null ; then
+        echo "wclsdev-srcs: our feature exists, using it: $feat"
+        git checkout "$feat"
+    elif git branch -a | grep "\b$branch\b" > /dev/null ; then
+        echo "wclsdev-srcs: our release branch exists, using it: $branch"
+        git flow feature start "$tag" "$branch"
+    else
+        echo "wclsdev-srcs: creating release branch $branch and feature $tag"
+        git checkout -b "$branch" "$ver"
+        git flow feature start "$tag" "$branch"
+    fi
+    popd > /dev/null 2>&1
+}
+
+
+# Set up environment to use an existing development area
+wclsdev-setup () {
+    local base="${1:-$(pwd)}";shift
+    pushd "$base"
+    if [ ! -f "$base/srcs/CMakeLists.txt" ] ; then
+        echo "wclsdev-setup: area is not inoculated: $base"
+        echo -e "\ttry wclsdev-init?"
+        popd
+        return
+    fi
+
+    if [ $(ls localProducts_*/setup | wc -l) -gt 1 ] ; then
+        echo "wclsdev-setup: ambiguity: more than one local products in $base"
+        return
+    fi
+
+    echo "wclsdev-setup: modifying your environment for mrb and local products in $base"
+    export MRB_PROJECT=larsoft
+    setup mrb
+    source localProducts_*/setup
+    
+    # this system is just utter crap
+    if [ -f srcs/larwirecell/ups/product_deps ] ; then
+        if [ -n "$(grep '^wirecell\b.*dev' srcs/larwirecell/ups/product_deps)" ] ; then
+            echo "wclsdev-setup: you are using WCT dev, must 'unsetup wirecell' now"
+            unsetup wirecell
+        fi
+    fi
+
+    pushd build_*
+    mrbsetenv
+    popd
+
+    echo "wclsdev-setup: leaving you in $(pwd)"
+
+}
+
+# Modify all product_deps files to set a different version for a package.
+wclsdev-fsck-ups () {
+    local base="${1:-$MRB_TOP}"; shift
+    local pkg="${1:-wirecell}"; shift;
+    local ver="${1:-dev}"; shift
+
+    if [ ! -d "$base/srcs/" ] ; then
+        echo "wclsdev-fsck-ups: this doesn't look like an mrb source area: $base"
+        return
+    fi
+
+    for pd in $base/srcs/*/ups/product_deps
+    do
+        echo -e "\t$pd"
+        sed  -e "s/^${pkg}\b.*/${pkg}\t${ver}/" -i $pd
+    done
+
+    echo "wclsdev-fsck-ups: before running 'mrbsetenv' you must run:"
+    echo -e "\tunsetup $pkg"
+
+}    

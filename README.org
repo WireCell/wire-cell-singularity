@@ -135,87 +135,53 @@ of the ~wirecell~ UPS product.
 
 #+BEGIN_EXAMPLE
   n$ mkdir wct-ups-install
-  n$ ./bind-wct.sh wclsdev.simg wct-ups-install
+  n$ ./bind-wct.sh wclsdev.simg wct-ups-install [rcfile]
   c$ ./update-wct.sh wct
 #+END_EXAMPLE
 
 Notes:
 
-- [[./bind-wct.sh]] :: will start the container and bind the directory given in the final arg over the ~dev~ area for the ~wirecell~ UPS "product"
+- [[./bind-wct.sh]] :: will start the container and bind the directory given in the final arg over the ~dev~ area for the ~wirecell~ UPS "product".  A final optional argument may be a Bash rcfile.  Some examples are given.
 - [[./update-wct.sh]] :: should be run inside the container and will assume the given directory holds a checked out version of the WCT source which it will configure, build, install and test.
 
-** I wanna develop WC/LS
+** I wanna develop WC/LS and don't waste my time
 
-If the above was too much, don't bother going here.  Because of the
-awkwardness of the UPS/mrb build system one has to do some hackage to
-make this work.  All files are created on your native file system and
-no additional bind mounts are used.  The outline is:
+This assumes the following native directories can be written to:
 
-1) Set up an "mrb" development area in the "standard" way based on the
-   version of larsoft included in the container.
-2) Add a clone of the ~larwirecell~ source repository and check out or
-   create a desired "feature branch"
-3) Hack the UPS bookkeeping to use the ~dev~ UPS ~wirecell~ "product"
-   installed as above.
-4) Build via ~mrb~ as "normal".
-
-Details instructions, starting in an ~exec~'ed container as above:
+ - ~wct~ :: where the WCT source goes
+ - ~lsdev~ :: where the mrb/LS (~larwirecell~) source goes
+ - ~wct-ups-dev-install~ :: space for the ~dev~ version of the ~wirecell~ UPS product
 
 #+BEGIN_EXAMPLE
-  c$ mkdir wcls ; cd wcls
-  c$ setup mrb
-  c$ export MRB_PROJECT=larsoft
-  c$ ups list -aK+ larsoft
-  "larsoft" "v06_82_00" "Linux64bit+4.4-2.23" "e15:prof" "" 
-  c$ setup larsoft v06_82_00 -q e15:prof
-  c$ echo $WIRECELL_VERSION
-  v0_7_0a
-  c$ mrb newDev
-  c$ source localProducts_larsoft_v06_82_00_e15_prof/setup
-  c$ cd srcs
-#+END_EXAMPLE
+  n$ git clone --recursive git@github.com:WireCell/wire-cell-build.git wct
+  n$ ./bind-wct.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
 
-Then clone the package you want and check out a feature branch (don't use mine).
+  c$ cd wct
+  c$ wclsdev-wct-configure
+  c$ ./wcb -p --notests install
+  c$ cd ..
 
-#+BEGIN_EXAMPLE
-  c$ mrb g larwirecell
-  c$ cd larwirecell
-  c$ git flow feature start bv_wctsimint
-#+END_EXAMPLE
-
-Hack the mrb/UPS nonsense
-
-#+BEGIN_EXAMPLE
-  c$ sed  -e 's/wirecell.*v0_7_0a/wirecell dev/' -i srcs/larwirecell/ups/product_deps
-  c$ git diff ups/product_deps
-#+END_EXAMPLE
-
-#+BEGIN_SRC diff
-  diff --git a/ups/product_deps b/ups/product_deps
-  index 5b0801d..1f7c4b2 100644
-  --- a/ups/product_deps
-  +++ b/ups/product_deps
-  @@ -12,8 +12,8 @@ defaultqual   e15
-   #fcldir product_dir job
-   #
-   product         version
-  -wirecell   v0_7_0a
-  +wirecell dev
- 
-   cetbuildtools  v7_03_03   -   only_for_build
-   end_product_list
-#+END_SRC
-
-Now try to build
-
-#+BEGIN_EXAMPLE
-  c$ cd ../../build_u16.x86_64/
-  c$ unsetup wirecell
-  c$ mrbsetenv
+  c$ wclsdev-init lsdev
+  c$ wclsdev-srcs
+  c$ wclsdev-fsck-ups
+  c$ wclsdev-setup lsdev
+  c$ cd build_u16.x86_64/
   c$ mrb build
 #+END_EXAMPLE
 
-If Perl's locale warnings bug you set ~LANG=C~.
+After a session you can reenter the image and get set up with:
+
+#+BEGIN_EXAMPLE
+  n$ ./bind-wct.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
+
+  c$ wclsdev-setup lsdev
+  c$ which wire-cell
+  c$ which art
+#+END_EXAMPLE
+
+** I wanna develop WC/LS and understand what I'm doing
+
+Read [[./wclsdev.rc]].
 
 * (More) Caveats for building images
 
@@ -244,6 +210,7 @@ like:
 
 The ~wclsdev~ image requires manual intervention because problems
 getting the UPS ~setup~ command to work inside Singularity's build.
+I can't find out why but it may be due ~/bin/sh~ not being bash.
 
 Downloading from SciSoft takes forever.  There's a hack to pre-seed
 the UPS tarballs.  Inquire if interested.
