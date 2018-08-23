@@ -56,7 +56,7 @@ Notes/caveats on the build:
 
 ** I wanna newer WCT than what is included
 
-Use the same image for build and run environemnt but ignore the
+Use the same image for build and run environment but ignore the
 version of WCT provided and build it yourself..
 
 #+BEGIN_EXAMPLE
@@ -83,8 +83,11 @@ need to be set to the configured installation location.
 #+END_EXAMPLE
 
 In principle, all tests should pass but there may be one or two edge
-cases.  For example, the ROOT binary doesn't include PyROOT to
-~test_units.py~ may fail.
+cases.  If ~test_units.py~ mails one probably needs to
+
+#+BEGIN_EXAMPLE
+  source /usr/local/bin/thisroot.sh
+#+END_EXAMPLE
 
 * What do you want to do with WC/LS?
 
@@ -171,7 +174,7 @@ Build a newer ~wirecell~ UPS product like above and then:
 Subsequent fresh sessions can be set up with:
 
 #+BEGIN_EXAMPLE
-  n$ ./bind-wct.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
+  n$ ./bind-wcls.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
 
   c$ wclsdev-setup lsdev
 #+END_EXAMPLE
@@ -231,7 +234,7 @@ version of ~wirecell~ you can cycle:
   c$ /usr/local/ups-dev/jsonnet/v0_11_2/Linux64bit+4.4-2.23-e15-prof/bin/jsonnet
 #+END_EXAMPLE
 
-You'll need to rebuild the ~lsdev~ area.
+You'll likely now need to rebuild your ~wct~ and then ~lsdev~ areas.
 
 * (More) Caveats for building images
 
