@@ -225,3 +225,16 @@ wclsdev-fsck-ups () {
 
 }    
 
+# The "wirecell" UPS product constantly steps on this variable, so we
+# do too.  Note: take care when adding multiple entries with nominally
+# the same files.  Unlike PATH, Jsonnet let's the *last* match win.
+wclsdev-path () {
+    if [ -n "$WIRECELL_PATH" ] ; then
+        echo "wclsdev-path: stomping on $WIRECELL_PATH"
+    fi
+    export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
+    if [ -f cfg/wirecell.jsonnet ] ; then
+        echo "wclsdev-path: found what looks like a WCT cfg directory in cwd."
+        WIRECELL_PATH=`pwd`/cfg:/usr/local/share/wirecell/data
+    fi
+}
