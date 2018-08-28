@@ -8,15 +8,16 @@ source /usr/local/ups/setup
 # set this, but warning that calling "setup" with the "wirecell" UPS product will tromp on it.
 export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
 
-# My dynamic prompt command doesn't translate into the container well,
-# drop down to static PS1
-unset PROMPT_COMMAND
-PS1='[$SINGULARITY_NAME:$WIRECELL_VERSION]\u@\h:\w> '
+export PS1='[sing:$WIRECELL_VERSION]\u@\h:\w> '
 
 # The locale sitch of the image is a bit fubar and this makes Perl
 # angry.  Sorry, it's an ASCII world.
 export LANG=C
 
+
+if [ -z "$USER" ] ; then
+    export USER=$(id -n -u)
+fi
 
 # the version string to use for the development "wirecell" UPS product
 wclsdev_wcver="wclsdev"
@@ -92,7 +93,7 @@ wclsdev-wct-configure () {
           --boost-includes="$BOOST_INC" \
           --boost-libs="$BOOST_LIB" \
           --boost-mt \
-          --prefix=$WIRECELL_FQ_DIR
+          --prefix=$WIRECELL_FQ_DIR || return 1
     echo "wclsdev-wct-configure: will install to $WIRECELL_FQ_DIR"
     echo -e "\tready to run:\n\t./wcb -p --notests install"
 }

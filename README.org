@@ -192,7 +192,7 @@ Leading up to WCT 0.8.0 a new version of Jsonnet is needed.  Here is
 what was done.  
 
 #+BEGIN_EXAMPLE
-  c$ cd $wclsdev_upsdev
+  c$ cd $wclsdev_upsdev   # <-- defined in the wclsdev.rc file.
   c$ git clone ssh://p-build-framework@cdcvs.fnal.gov/cvs/projects/build-framework-jsonnet-ssi-build jsonnet-ssi-build
   c$ cd jsonnet-ssi-build
   c$ ./bootstrap.sh $wclsdev_upsdev
@@ -268,3 +268,150 @@ I can't find out why but it may be due ~/bin/sh~ not being bash.
 Downloading from SciSoft takes forever.  There's a hack to pre-seed
 the UPS tarballs.  Inquire if interested.
 
+
+* Scientific Linux
+
+A [[./Singularity.sl7wclsdev]] script is also provided to build a WC/LS
+image based Scientific Linux.  The resulting image is quite a bit
+larger so it not distributed.  See below for a SL7 base image which
+is.
+
+** How do I build my own image
+
+This is somewhat involved.
+
+*** Prepare binary UPS products
+
+Pick a version of larsoft, (here, I use [[http://scisoft.fnal.gov/scisoft/bundles/larsoft/v07_03_00/larsoft-v07_03_00.html][v07_03_00]]) and get all the binary tarballs.
+
+#+BEGIN_EXAMPLE
+  n$ mkdir -p /srv/bviren/tmp/ups-sl7-ls703/products
+  n$ cd /srv/bviren/tmp/ups-sl7-ls703
+  n$ wget http://scisoft.fnal.gov/scisoft/bundles/tools/pullProducts
+  n$ chmod +x pullProducts
+  n$ ./pullProducts products slf7 larsoft-v07_03_00 s70-e17 prof
+  # optional:
+  n$ rm -f products/wirecell/v0_7_0a/Linux64bit+3.10-2.17-e17-prof/wirecell-0.7.0/build/
+  n$ tar -cf ups-products-slf7-ls703.tar products
+#+END_EXAMPLE
+
+Notes:
+
+- The ~rm~ there gets rid of intermediate build products which
+should not have been added to the ~wirecell~ UPS product.  It remove 1.1GB.
+- The ~pullProducts~ takes a horribly long time (45 minutes here)
+  which is why we don't even try to put this inside the Singularity script.
+
+After making this tar file it is okay to remove the ~products/~
+directory and all the ~.tar.gz~ files left by ~pullProducts~.  You
+will need to set the location of ~ups-products-slf7-ls703.tar~ in your
+copy of the [[./Singularity.sl7wclsdev]] script.
+
+*** Build the image
+#+BEGIN_EXAMPLE
+  n$ sudo singularity build sl7wclsdev.simg Singularity.sl7wclsdev
+#+END_EXAMPLE
+
+
+** That image is too big and it's already out of date
+
+A more sustainable approach is to use a minimal SL7 image that lacks
+any UPS products and then leave it up to you, dear reader, to do with
+it as you wish.  This is [[./Singularity.sl7]] which produces a 370 MB
+image which is available at https://www.phy.bnl.gov/~bviren/simg/sl7.simg.
+
+You can then maintain your own UPS products area(s) in a native
+directory of your choosing.  To do the initial set up you can
+essentially follow the ~pullProducts~ instructions above and then
+assure the resulting ~products/~ directory is visible from inside the
+image, either by having it in native home directory or binding its
+directory into the image.
+
+To match the pattern used in the ~wclsdev.simg~ image the script
+provided requires two native directories.  One to bind to
+~/usr/local/ups~ and one to ~/usr/local/ups-dev~.  In principle these
+could be the same area.  Tweak as desired.
+
+#+BEGIN_EXAMPLE
+  n$ ./bind-wcls-sl7.sh sl7.simg \
+       /srv/bviren/tmp/ups-sl7-ls703/products \
+       /srv/bviren/tmp/ups-sl7-dev \
+       wclsdev.rc 
+
+  c$ ups list -aK+ larsoft
+  "larsoft" "v07_03_00" "Linux64bit+3.10-2.17" "e17:prof" "" 
+  c$ wclsdev-ups-version larsoft
+  v07_03_00
+  c$ wclsdev-ups-version wirecell
+  v0_7_0a
+
+  c$ wclsdev-<TAB><TAB>
+  wclsdev-fsck-ups       wclsdev-setup          wclsdev-ups-quals
+  wclsdev-init           wclsdev-srcs           wclsdev-ups-version
+  wclsdev-path           wclsdev-ups-declare    wclsdev-wct-configure
+#+END_EXAMPLE
+
+The ~wclsdev-*~ functions were written with defaults matching some
+release.  To use with arbitrary release they will need additional
+arguments than what was shown in their use above.  When in doubt, use
+the shell command ~type wclsdev-<command>~ to see what a command does.
+What follows is how to repeat the initial setup for this newer
+version.
+
+*** Build a newer ~wirecell~ UPS product
+
+#+BEGIN_EXAMPLE
+  c$ wclsdev-ups-declare
+  c$ cd wct
+  c$ wclsdev-wct-configure
+  c$ ./wcb -p --notests install
+#+END_EXAMPLE
+
+*** Builds new UPS products for external dependencies
+
+This works as above but Kerberos SSH seems busted.  Do any ~git~ stuff
+outside the container for now.  Because the SL7 image is newer you
+will need to adjust qualifiers.
+
+#+BEGIN_EXAMPLE
+  c$ wclsdev-ups-quals jsonnet
+  e17:prof
+  c$ ./build_jsonnet.sh $wclsdev_upsdev e17 prof
+  c$ setup gcc v7_3_0
+  c$ ./Linux64bit+4.4-2.17-e17-prof/bin/jsonnet --version
+  Jsonnet commandline interpreter v0.9.3
+#+END_EXAMPLE
+
+Note the setup of UPS product ~gcc~.  Without it, trying to run the
+just-built ~jsonnet~ program will fail as it will try to link against
+the system ~libstdc++~ which is of the wrong ABI.
+
+After changing the version strings as above, the latest version can
+likewise be built.
+
+#+BEGIN_EXAMPLE
+  c$ ./Linux64bit+4.4-2.17-e17-prof/bin/jsonnet --version
+  Jsonnet commandline interpreter v0.11.2
+#+END_EXAMPLE
+
+*** Updating the official ~wirecell~ UPS product build script
+
+This progresses just like the Jsonnet example above but requires a
+upstream WCT release as well as updating the ~wirecell.table~ file to
+point to the new release of Jsonnet (or whatever).
+
+t.b.c.
+
+*** Setting up ~larwirecell~ development area
+
+This also proceeds like in ~wclsdev.simg~ but here I make use of the
+fact that ~/usr/local/ups-dev~ was bound to my local disk area.
+
+#+BEGIN_EXAMPLE
+  c$ wclsdev-init /usr/local/ups-dev/lsdev
+  c$ wclsdev-srcs
+  c$ wcls-fsck-ups
+  c$ wclsdev-setup lsdev
+  c$ cd build_slf7.x86_64
+  c$ mrb build
+#+END_EXAMPLE
