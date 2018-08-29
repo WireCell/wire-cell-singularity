@@ -415,3 +415,48 @@ fact that ~/usr/local/ups-dev~ was bound to my local disk area.
   c$ cd build_slf7.x86_64
   c$ mrb build
 #+END_EXAMPLE
+
+* Update UPS build shim for a release 
+
+Here, we update for WCT release 0.8.0 (to build UPS product ~wirecell~
+with UPS version string ~v0_8_0~).  Start the image as above and go to
+where the build shim is cloned
+
+#+BEGIN_EXAMPLE
+  n$ ./bind-wcls-sl7.sh ~/public_html/simg/sl7.simg /srv/bviren/tmp/ups-sl7-ls703/products /srv/bviren/tmp/ups-sl7-dev wclsdev.rc 
+
+  c$ cd /usr/local/ups-dev/wirecell-ssi-build/
+#+END_EXAMPLE
+
+Update the WCT version string in ~bootstrap.sh~ and
+~build_wirecell.sh~ and any new versions for external dependencies in
+~ups/wirecell.table~.  
+
+Also, take the opportunity to fix the ~build_wirecell.sh~ so it
+doesn't include the temporary build products, saving a bit more than
+1GB.
+
+Then exercise the shim:
+
+#+BEGIN_EXAMPLE
+  c$ ./bootstrap.sh $wclsdev_upsdev
+  c$ cd $wclsdev_upsdev/wirecell/v0_8_0 
+  c$ wclsdev-ups-quals 
+  e17:prof
+  c$ ./build_wirecell.sh $wclsdev_upsdev e17 prof
+#+END_EXAMPLE
+
+This fails with:
+
+#+BEGIN_EXAMPLE
+building wirecell for sl7-x86_64-x86_64-e17-prof (flavor Linux64bit+4.4-2.17)
+Declaring wirecell v0_8_0 for Linux64bit+4.4-2.17 and e17:prof in /usr/local/ups-dev/wirecell/v0_8_0/fakedb
++ ups declare wirecell v0_8_0 -r /usr/local/ups-dev/wirecell/v0_8_0 -f Linux64bit+4.4-2.17 -m wirecell.table -q +e17:+prof -z /usr/local/ups-dev/wirecell/v0_8_0/fakedb
++ set +x
+Error encountered when setting up product: wirecell
+ERROR: Product 'wirecell' (with qualifiers 'e17:prof'), has no v0_8_0 version (or may not exist)
+ERROR: fake setup failed
+#+END_EXAMPLE
+
+Dunno what's up with that.
+
