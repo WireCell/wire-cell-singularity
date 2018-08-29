@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# this rc file should be run with wct.rc
+
+wct-configure () {
+    if [ ! -f wcb ] ; then
+        echo "This doesn't look like a WCT source directory"
+        return 1
+    fi
+    ./wcb configure --prefix=/usr/local/opt/wct --with-jsonnet=/usr/local --with-eigen-include=/usr/include/eigen3
+}
+

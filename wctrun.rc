@@ -4,12 +4,6 @@
 # container.  It puts the bins/libs into their PATH variables.  For
 # building WCT you probably do not want to do that.
 
-export PATH=/usr/local/opt/wct/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/opt/wct/lib:$LD_LIBRARY_PATH
-export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
-
-# my prompt command doesn't translate into the container well 
-unset PROMPT_COMMAND
-PS1='[$SINGULARITY_NAME]\u@\h:\w> '
+PS1='[wct]\u@\h:\w> '
 
 

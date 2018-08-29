@@ -1,342 +1,109 @@
-#+TITLE: Wire-Cell Toolkit Singularity Containers
+#+title: Singularity Containers for Wire-Cell Toolkit
 
-This area holds [[https://www.sylabs.io/][Singularity]] recipes for producing containers which
-provide run-time or development environments for Wire-Cell Toolkit in
-some different contexts.
+* What's here
 
-When you see:
+This repo holds:
+
+ - Singularity recipes (~Singularity.*~ files) with which to build
+   Singularity containers.  Some pre-built images may be available at
+   https://www.phy.bnl.gov/~bviren/simg/
+
+ - A shell scripts to execute a container (~*wcsing.sh~) and
+
+ - Bash configuration files (~*.rc~) to provide some environment variables and functions.
+
+Depending on how you mix these three files you may achieve various
+goals.  What follows is a tour of some example ways to use this repo's
+files.  It is assumed you have already downloaded or built the
+referenced files. The example commands use a ~n$~ and a ~c$~ prompt
+for commands run in your *native* and *container* environment,
+respectively.
+
+* Run ~wire-cell~
+
+You can run ~wire-cell~ command line interface as an end user with an
+image built from a recent release.
 
 #+BEGIN_EXAMPLE
-  n$ echo "this command runs in native environment"
-  c$ echo "this command runs in container environment"
-#+END_EXAMPLE
+  n$ wcsing.sh wct0.8.0-ub1804.simg wct.rc
 
-* What do you want to do with Wire-Cell Toolkit?
-
-Each ~Singularity.*~ file builds an image.  Also offered are the
-binary results built at some point in the past.
-
-** I wanna run ~wire-cell~
-
-Download this relatively svelte (717 MB) image:
-[[https://www.phy.bnl.gov/~bviren/simg/wctdev.simg]]
-
-Run this:
-
-#+BEGIN_EXAMPLE
-  n$ singularity exec wctdev.simg /bin/bash --rcfile wctrun.rc
   c$ wire-cell --help
+  c$ echo $WIRECELL_PATH
+  /usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
 #+END_EXAMPLE
 
-This image provides:
+This image was built with [[./Singularity.wct0.8.0-ub1804]].
 
-- minimal Ubuntu 18.04 image
-- build environment and run time dependencies needed by WCT  as Ubuntu packages
-- Jsonnet built from source.
-- ROOT binaries from CERN.
-- Files from WCT ~data~ and ~cfg~ packages.
-- A copy of WCT source from ~master~ at time of image build.
-- A built version of above source in ~/usr/local/opt/wct/~.
+* Develop WCT
 
-** I  wanna build the ~wctdev~ image
-
+The above image and command may be extended to provide a development
+environment for WCT.  Provide a native directory to "bind mount" over
+the location of the WCT installation that was provided by the image:
 
 #+BEGIN_EXAMPLE
-  n$ wget https://root.cern.ch/download/root_v6.14.02.Linux-ubuntu18-x86_64-gcc7.3.tar.gz
-  n$ sudo singularity build wctdev.simg Singularity.wctdev
+  n$ wcsing.sh wct0.8.0-ub1804.simg wct.rc /path/to/space:/usr/local/opt/wct
+
+  c$ cd /path/to/my/wct
+  c$ wct-configure
+  c$ ./wcb -p install
+  c$ which wire-cell
+  /usr/local/opt/wct/bin/wire-cell
 #+END_EXAMPLE
 
+Notes: 
 
-Notes/caveats on the build:
+- The ~wct-configure~ is a bash function provided by ~wct.rc~.  
+- You can eschew this function and install wherever you want but
+  beware that your environment is set up to pick up the WCT under
+  ~/usr/local~
+- You may give ~wcb~ the option ~--notests~ to save some time to skip
+  building and running the tests.  If included, they should all
+  complete.
 
-- Produces 717 MB image, takes about 300 seconds
-- Pre-download the required ROOT binary because the download can be
-  really slow at times (and fast at others).  If you must rebuild
-  multiple times due to problems it gets annoying really fast to wait.
+* Run WC/LS
 
-** I wanna newer WCT than what is included
-
-Use the same image for build and run environment but ignore the
-version of WCT provided and build it yourself..
-
-#+BEGIN_EXAMPLE
-  n$ git clone --recursive git@github.com:WireCell/wire-cell-build.git wct
-  n$ singularity exec wctdev.simg /bin/bash --rcfile wctdev.rc
-  c$ cd wct/
-  c$ ./wcb configure --prefix=`pwd`/install --with-jsonnet=/usr/local --with-eigen-include=/usr/include/eigen3
-  c$ ./wcb -p --notests install
-#+END_EXAMPLE
-
-Notes:
-
- - Your SSH agent authentication may not be visible from inside the container so do any ~git~ actions from your native shell.
-
- - Unlike running the pre-built ~wire-cell~ do *not* set ~PATH~ variables as above in order to avoid any potential of version shear.
-
-In order to run this build or run the build tests the ~PATH~ variables
-need to be set to the configured installation location.
+A full "kitchen sink" image is provided which includes everything
+needed to run Wire-Cell Toolkit components integrated into /art/ +
+LArSoft framework.  The environment is provided by packages in the
+form of Fermilab UPS "products" which correspond to a particular
+release.  
 
 #+BEGIN_EXAMPLE
-  c$ export LD_LIBRARY_PATH=`pwd`/install/lib:$LD_LIBRARY_PATH
-  c$ export PATH=`pwd`/install/bin:$PATH
-  c$ ./wcb -p --alltests
-#+END_EXAMPLE
+  n$ wcsing.sh wcls703-sl7.simg wclsrun.rc
 
-In principle, all tests should pass but there may be one or two edge
-cases.  If ~test_units.py~ mails one probably needs to
-
-#+BEGIN_EXAMPLE
-  source /usr/local/bin/thisroot.sh
-#+END_EXAMPLE
-
-* What do you want to do with WC/LS?
-
-WC/LS = Wire-Cell Toolkit + /art/ and LArSoft.  It has its own image,
-binding script and rc helper file.
-
-** I wanna run WC/LS jobs
-
-Download this relatively bloated (4.4 GB) image:
-[[https://www.phy.bnl.gov/~bviren/simg/wclsdev.simg]]
-
-#+BEGIN_EXAMPLE
-  n$ singularity exec wclsdev.simg /bin/bash --rcfile wclsrun.rc
+  c$ which wire-cell
+  /usr/local/ups/wirecell/v0_7_0a/Linux64bit+3.10-2.17-e17-prof/bin/wire-cell
   c$ wire-cell --help
   c$ art --help
 #+END_EXAMPLE
 
-This provides
+Notes
 
-- minimal Ubuntu 16.04 image with a few extra system packages
-- larsoft as UPS binaries include ~larwirecell~
-- latest production WCT as the ~wirecell~ UPS product
-- a copy of latest WCT source from github
-- build of this source against the above as a ~dev~ version of UPS product ~wirecell~
+ - The ~wcls703-sl7.simg~ has WCT version 0.7.0.
+ - It was build with [[./Singularity.sl7wclsdev]]
 
-** I wanna build the ~wclsdev~ image
+* Develop WC/LS
 
-Well, good fscking luck.  There are numerous problems getting it to
-work, mostly involving around the insane ~setup~ script needed before
-any further UPS failure can happen.  In the end I could only automate
-so much of it.
+The simultaneous development of Wire-Cell Toolkit and LArSoft requires
+substantial setup depending on your goals.  You can extend the above
+image for *incremental* changes.  For example you may need to:
 
-#+BEGIN_EXAMPLE
-  n$ sudo singularity build --sandbox wclsdev-sandbox Singularity.wcls.dev
-  n$ sudo singularity shell --writable wclsdev-sandbox
-  c$ /usr/local/src/wcls.sh
-  c$ exit
-  n$ sudo singularity build wclsdev.simg wclsdev-sandbox
-#+END_EXAMPLE
+ - upgrade external dependencies in the form of new UPS "products" to
+   satisfy recent changes in WCT development.
 
-Notes/caveats:
+ - develop WCT and install it into a ~wirecell~ UPS product area so it
+   may be used in a WC/LS job.  
 
-- Ubuntu 16.04 is used because FNAL does not yet support 18.04 for UPS
-  binaries.
-- The Singularity build will take FOREVER due to downloading a
-  gajillion jigglebytes from FNAL's SciSoft server.
+ - directly develop LArSoft packages or simply rebuild because they
+   depend upgraded externals or changes in WCT described above.  This
+   most likely means rebuilding/developing the ~larwirecell~ package.
 
-** I wanna build a newer ~wirecell~ UPS product
-
-The container is read-only and writable storage is needed to hold any
-UPS products that want to be built.  In principle, you can just use
-native file system like above.  However, instead, we bind some native
-directory to a well known location to make the helper scripts simpler.
+The above image can be extended to perform these tasks by providing
+space for a ~/usr/local/ups-dev~ directory to hold new UPS products.
 
 #+BEGIN_EXAMPLE
-  n$ git clone --recursive git@github.com:WireCell/wire-cell-build.git wct
-  n$ ./bind-wcls.sh wclsdev.simg ups-dev-products wclsdev.rc
-  
-  c$ wclsdev-ups-declare
-  c$ cd wct
-  c$ wclsdev-wct-configure
-  c$ ./wcb -p --notests install
-#+END_EXAMPLE
-
-** Wait, what?
-
-Read [[./wclsdev.rc]].
-
-** I wanna develop WC/LS 
-
-Build a newer ~wirecell~ UPS product like above and then:
-
-#+BEGIN_EXAMPLE
-  n$ ./bind-wcls.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
-
-  c$ wclsdev-init lsdev
-  c$ wclsdev-srcs
-  c$ wclsdev-fsck-ups
-  c$ wclsdev-setup lsdev
-  c$ cd build_u16.x86_64/
-  c$ mrb build
-#+END_EXAMPLE
-
-Subsequent fresh sessions can be set up with:
-
-#+BEGIN_EXAMPLE
-  n$ ./bind-wcls.sh wclsdev.simg wct-ups-dev-install wclsdev.rc 
-
-  c$ wclsdev-setup lsdev
-#+END_EXAMPLE
-
-** I wanna develop WC/LS and understand what I'm doing
-
-Read [[./wclsdev.rc]].
-
-** The UPS externals are old and stupid, give me freshness
-
-There's no special instructions here, other than to use the bind mount
-on ~/usr/local/ups-dev~ in which to install any additional UPS products.
-
-Leading up to WCT 0.8.0 a new version of Jsonnet is needed.  Here is
-what was done.  
-
-#+BEGIN_EXAMPLE
-  c$ cd $wclsdev_upsdev   # <-- defined in the wclsdev.rc file.
-  c$ git clone ssh://p-build-framework@cdcvs.fnal.gov/cvs/projects/build-framework-jsonnet-ssi-build jsonnet-ssi-build
-  c$ cd jsonnet-ssi-build
-  c$ ./bootstrap.sh $wclsdev_upsdev
-  c$ cd $wclsdev_upsdev/jsonnet/v0_9_3_c/
-  c$ ./build_jsonnet.sh $wclsdev_upsdev e15 prof
-  c$ ./Linux64bit+4.4-2.23-e15-prof/bin/jsonnet --version
-  Jsonnet commandline interpreter v0.9.3
-#+END_EXAMPLE
-
-That just rebuilt the last version.  To update, hack the scripts in the shim package.  If you are lucky you'll just need to tweak the UPS spelling of the version in the variables:
-
-#+BEGIN_EXAMPLE
-origpkgver=v0_11_2
-pkgver=${origpkgver}
-#+END_EXAMPLE
-
-in files ~build_jsonnet.sh~ and ~bootstrap.sh~.  Repeating the two
-scripts as above should hopefully succeed.
-
-#+BEGIN_EXAMPLE
-  c$ ./Linux64bit+4.4-2.23-e15-prof/bin/jsonnet --version
-  Jsonnet commandline interpreter v0.11.2
-#+END_EXAMPLE
-
-You must now find mention of the old version in various places, in particular:
-
-#+BEGIN_EXAMPLE
-  n$ emacs $wclsdev_upsdev/wirecell/wclsdev/ups/wirecell.table
-#+END_EXAMPLE
-
-Strictly speaking you just need to modify the stanza matching the
-quals to be used.  If you've already set up your environment for that
-version of ~wirecell~ you can cycle:
-
-#+BEGIN_EXAMPLE
-  c$ unsetup wirecell
-  c$ setup wirecell wclsdev -q e15:prof
-  c$ which jsonnet
-  c$ /usr/local/ups-dev/jsonnet/v0_11_2/Linux64bit+4.4-2.23-e15-prof/bin/jsonnet
-#+END_EXAMPLE
-
-You'll likely now need to rebuild your ~wct~ and then ~lsdev~ areas.
-
-* (More) Caveats for building images
-
-** Native support
-
-Besides ~singularity~ you will need to provide local installations of:
-
-- ~debootstrap~ :: to build Ubuntu images
-- ~yum~ :: to build Scientific Linux images
-
-** Disk space
-
-Substantial disk space is required (especially for the SL/UPS images).
-If you are short on disk space for ~/tmp~, you may want to do something
-like:
-
-#+BEGIN_EXAMPLE
-  n$ sudo mkdir -p /srv/singularity/tmp
-  n$ sudo chmod 777 /srv/singularity/tmp
-  n$ export SINGULARITY_TMPDIR=/srv/singularity/tmp
-  n$ export SINGULARITY_LOCALCACHEDIR=/srv/singularity/tmp/$USER
-#+END_EXAMPLE
-
-
-** Problems with FNAL software
-
-The ~wclsdev~ image requires manual intervention because problems
-getting the UPS ~setup~ command to work inside Singularity's build.
-I can't find out why but it may be due ~/bin/sh~ not being bash.
-
-Downloading from SciSoft takes forever.  There's a hack to pre-seed
-the UPS tarballs.  Inquire if interested.
-
-
-* Scientific Linux
-
-A [[./Singularity.sl7wclsdev]] script is also provided to build a WC/LS
-image based Scientific Linux.  The resulting image is quite a bit
-larger so it not distributed.  See below for a SL7 base image which
-is.
-
-** How do I build my own image
-
-This is somewhat involved.
-
-*** Prepare binary UPS products
-
-Pick a version of larsoft, (here, I use [[http://scisoft.fnal.gov/scisoft/bundles/larsoft/v07_03_00/larsoft-v07_03_00.html][v07_03_00]]) and get all the binary tarballs.
-
-#+BEGIN_EXAMPLE
-  n$ mkdir -p /srv/bviren/tmp/ups-sl7-ls703/products
-  n$ cd /srv/bviren/tmp/ups-sl7-ls703
-  n$ wget http://scisoft.fnal.gov/scisoft/bundles/tools/pullProducts
-  n$ chmod +x pullProducts
-  n$ ./pullProducts products slf7 larsoft-v07_03_00 s70-e17 prof
-  # optional:
-  n$ rm -f products/wirecell/v0_7_0a/Linux64bit+3.10-2.17-e17-prof/wirecell-0.7.0/build/
-  n$ tar -cf ups-products-slf7-ls703.tar products
-#+END_EXAMPLE
-
-Notes:
-
-- The ~rm~ there gets rid of intermediate build products which
-should not have been added to the ~wirecell~ UPS product.  It remove 1.1GB.
-- The ~pullProducts~ takes a horribly long time (45 minutes here)
-  which is why we don't even try to put this inside the Singularity script.
-
-After making this tar file it is okay to remove the ~products/~
-directory and all the ~.tar.gz~ files left by ~pullProducts~.  You
-will need to set the location of ~ups-products-slf7-ls703.tar~ in your
-copy of the [[./Singularity.sl7wclsdev]] script.
-
-*** Build the image
-#+BEGIN_EXAMPLE
-  n$ sudo singularity build sl7wclsdev.simg Singularity.sl7wclsdev
-#+END_EXAMPLE
-
-
-** That image is too big and it's already out of date
-
-A more sustainable approach is to use a minimal SL7 image that lacks
-any UPS products and then leave it up to you, dear reader, to do with
-it as you wish.  This is [[./Singularity.sl7]] which produces a 370 MB
-image which is available at https://www.phy.bnl.gov/~bviren/simg/sl7.simg.
-
-You can then maintain your own UPS products area(s) in a native
-directory of your choosing.  To do the initial set up you can
-essentially follow the ~pullProducts~ instructions above and then
-assure the resulting ~products/~ directory is visible from inside the
-image, either by having it in native home directory or binding its
-directory into the image.
-
-To match the pattern used in the ~wclsdev.simg~ image the script
-provided requires two native directories.  One to bind to
-~/usr/local/ups~ and one to ~/usr/local/ups-dev~.  In principle these
-could be the same area.  Tweak as desired.
-
-#+BEGIN_EXAMPLE
-  n$ ./bind-wcls-sl7.sh sl7.simg \
-       /srv/bviren/tmp/ups-sl7-ls703/products \
-       /srv/bviren/tmp/ups-sl7-dev \
-       wclsdev.rc 
+  n$ wcsing.sh wcls703-sl7.simg wclsdev.rc \
+     /path/to/storage:/usr/local/ups-dev
 
   c$ ups list -aK+ larsoft
   "larsoft" "v07_03_00" "Linux64bit+3.10-2.17" "e17:prof" "" 
@@ -351,112 +118,29 @@ could be the same area.  Tweak as desired.
   wclsdev-path           wclsdev-ups-declare    wclsdev-wct-configure
 #+END_EXAMPLE
 
-The ~wclsdev-*~ functions were written with defaults matching some
-release.  To use with arbitrary release they will need additional
-arguments than what was shown in their use above.  When in doubt, use
-the shell command ~type wclsdev-<command>~ to see what a command does.
-What follows is how to repeat the initial setup for this newer
-version.
-
-*** Build a newer ~wirecell~ UPS product
+The ~wclsdev-*~ bash functions simplify many of the common task you
+may need to perform.  For now, they are "documented" by typing, for
+example:
 
 #+BEGIN_EXAMPLE
-  c$ wclsdev-ups-declare
-  c$ cd wct
-  c$ wclsdev-wct-configure
-  c$ ./wcb -p --notests install
+  c$ type wclsdev-init
 #+END_EXAMPLE
 
-*** Builds new UPS products for external dependencies
-
-This works as above but Kerberos SSH seems busted.  Do any ~git~ stuff
-outside the container for now.  Because the SL7 image is newer you
-will need to adjust qualifiers.
+As time goes on this image will get further and further behind.  You
+may instead wish to provide the entire ~/usr/local/ups~ area (and
+maybe also ~ups-dev~) yourself and use a much smaller image.  This can
+be done like so:
 
 #+BEGIN_EXAMPLE
-  c$ wclsdev-ups-quals jsonnet
-  e17:prof
-  c$ ./build_jsonnet.sh $wclsdev_upsdev e17 prof
-  c$ setup gcc v7_3_0
-  c$ ./Linux64bit+4.4-2.17-e17-prof/bin/jsonnet --version
-  Jsonnet commandline interpreter v0.9.3
+  n$ wcsing.sh wcls703-sl7.simg wclsdev.rc \
+     /path/to/storage/ups:/usr/local/ups \
+     /path/to/storage/ups-dev:/usr/local/ups-dev
 #+END_EXAMPLE
 
-Note the setup of UPS product ~gcc~.  Without it, trying to run the
-just-built ~jsonnet~ program will fail as it will try to link against
-the system ~libstdc++~ which is of the wrong ABI.
+Here the ~/path/to/storage/ups~ is some directory that you can
+populate "in the usual way" with officially built UPS products using
+the ~pullProducts~ script.
 
-After changing the version strings as above, the latest version can
-likewise be built.
+* Etc
 
-#+BEGIN_EXAMPLE
-  c$ ./Linux64bit+4.4-2.17-e17-prof/bin/jsonnet --version
-  Jsonnet commandline interpreter v0.11.2
-#+END_EXAMPLE
-
-*** Updating the official ~wirecell~ UPS product build script
-
-This progresses just like the Jsonnet example above but requires a
-upstream WCT release as well as updating the ~wirecell.table~ file to
-point to the new release of Jsonnet (or whatever).
-
-t.b.c.
-
-*** Setting up ~larwirecell~ development area
-
-This also proceeds like in ~wclsdev.simg~ but here I make use of the
-fact that ~/usr/local/ups-dev~ was bound to my local disk area.
-
-#+BEGIN_EXAMPLE
-  c$ wclsdev-init /usr/local/ups-dev/lsdev
-  c$ wclsdev-srcs
-  c$ wcls-fsck-ups
-  c$ wclsdev-setup lsdev
-  c$ cd build_slf7.x86_64
-  c$ mrb build
-#+END_EXAMPLE
-
-* Update UPS build shim for a release 
-
-Here, we update for WCT release 0.8.0 (to build UPS product ~wirecell~
-with UPS version string ~v0_8_0~).  Start the image as above and go to
-where the build shim is cloned
-
-#+BEGIN_EXAMPLE
-  n$ ./bind-wcls-sl7.sh ~/public_html/simg/sl7.simg /srv/bviren/tmp/ups-sl7-ls703/products /srv/bviren/tmp/ups-sl7-dev wclsdev.rc 
-
-  c$ cd /usr/local/ups-dev/wirecell-ssi-build/
-#+END_EXAMPLE
-
-Update the WCT version string in ~bootstrap.sh~ and
-~build_wirecell.sh~ and any new versions for external dependencies in
-~ups/wirecell.table~.  
-
-Also, take the opportunity to fix the ~build_wirecell.sh~ so it
-doesn't include the temporary build products, saving a bit more than
-1GB.
-
-Then exercise the shim:
-
-#+BEGIN_EXAMPLE
-  c$ ./bootstrap.sh $wclsdev_upsdev
-  c$ cd $wclsdev_upsdev/wirecell/v0_8_0 
-  c$ wclsdev-ups-quals 
-  e17:prof
-  c$ ./build_wirecell.sh $wclsdev_upsdev e17 prof
-#+END_EXAMPLE
-
-This fails with:
-
-#+BEGIN_EXAMPLE
-building wirecell for sl7-x86_64-x86_64-e17-prof (flavor Linux64bit+4.4-2.17)
-Declaring wirecell v0_8_0 for Linux64bit+4.4-2.17 and e17:prof in /usr/local/ups-dev/wirecell/v0_8_0/fakedb
-+ ups declare wirecell v0_8_0 -r /usr/local/ups-dev/wirecell/v0_8_0 -f Linux64bit+4.4-2.17 -m wirecell.table -q +e17:+prof -z /usr/local/ups-dev/wirecell/v0_8_0/fakedb
-+ set +x
-Error encountered when setting up product: wirecell
-ERROR: Product 'wirecell' (with qualifiers 'e17:prof'), has no v0_8_0 version (or may not exist)
-ERROR: fake setup failed
-#+END_EXAMPLE
-
-Dunno what's up with that.
-
+Some outdated notes are in [[./notes.org]].

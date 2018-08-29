@@ -8,7 +8,7 @@ source /usr/local/ups/setup
 # set this, but warning that calling "setup" with the "wirecell" UPS product will tromp on it.
 export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
 
-export PS1='[sing:$WIRECELL_VERSION]\u@\h:\w> '
+export PS1='[wclsdev:$WIRECELL_VERSION]\u@\h:\w> '
 
 # The locale sitch of the image is a bit fubar and this makes Perl
 # angry.  Sorry, it's an ASCII world.

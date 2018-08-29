@@ -5,7 +5,12 @@
 
 export WIRECELL_PATH=/usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
 
+wct-configure () {
+    ./wcb configure --prefix=/usr/local/opt/wct --with-jsonnet=/usr/local --with-eigen-include=/usr/include/eigen3
+}
+
+
 unset PROMPT_COMMAND
-PS1='[$SINGULARITY_NAME]\u@\h:\w> '
+PS1='[wct]\u@\h:\w> '
 
 

@@ -14,7 +14,7 @@ yum -y install bash curl wget
 wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 rpm -ivh epel-release-latest-7.noarch.rpm
 yum repolist
-yum -y install bash curl wget tar hostname redhat-lsb-core lbzip2 zlib-devel which git curl make cmake bison pkgconfig python emacs jq vim time openssl-dev python-pip python-hashlib ipython numpy python-matplotlib readline
+yum -y install bash curl wget tar hostname redhat-lsb-core lbzip2 zlib-devel which git curl make cmake bison pkgconfig python emacs jq vim time openssl-dev python-pip python-hashlib ipython numpy python-matplotlib readline glibc-devel bzip2
 
 yum clean all
 
