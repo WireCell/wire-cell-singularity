@@ -141,6 +141,21 @@ Here the ~/path/to/storage/ups~ is some directory that you can
 populate "in the usual way" with officially built UPS products using
 the ~pullProducts~ script.
 
+
+* Yet more simplification
+
+The problem with containers is that it now lets us have many
+environments to choose from.  Managing this is left as an exercise to
+you dear reader but you may consider writing something like
+[[./sourceme.bv]].  With this I package:
+
+ - the location of my container images
+ - the location and bind-mount points of any native directories
+
+into a bash function which is named based on my task.  I name each
+staring with ~sing-~ so my shell tab completion tells me what's
+available.  
+
 * Etc
 
 Some outdated notes are in [[./notes.org]].
