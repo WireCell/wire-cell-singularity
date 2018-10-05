@@ -6,6 +6,8 @@
 
 PATH=$HOME/opt/singularity/bin:$PATH
 
+native_wctsrc=$HOME/dev/wct/src
+
 singdir=$(dirname $(readlink -f $BASH_SOURCE))
 
 # start basic SL7 image using my "production" UPS products area
@@ -15,5 +17,21 @@ sing-sl7ups () {
 
 # As above but also add in my "development" UPS products area, including mrb areas
 sing-sl7ups-dev () {
-    $singdir/wcsing.sh ~/public_html/simg/sl7.simg $singdir/wclsdev.rc /srv/bviren/tmp/ups-sl:/usr/local/ups /srv/bviren/tmp/ups-sl7-dev/:/usr/local/ups-dev
+    echo "after entering run, eg:"
+    echo "  wclsdev-setup /usr/local/ups-dev/lsdev"
+    echo "  wclsdev-path"
+    $singdir/wcsing.sh ~/public_html/simg/sl7.simg \
+                       $singdir/wclsdev.rc \
+                       /srv/bviren/tmp/ups-sl7-ls703/products:/usr/local/ups \
+                       /srv/bviren/tmp/ups-sl7-dev/:/usr/local/ups-dev
+}
+
+# Stand-alone development.
+sing-wctdev () {
+    local install_dir=$native_wctsrc/install-sing-wctdev
+    if [ ! -d $install_dir ] ; then
+        mkdir -p $install_dir
+    fi
+    echo "Can use wct-configure to configure source"
+    $singdir/wcsing.sh ~/public_html/simg/wctdev.simg $singdir/wctdev.rc $install_dir:/usr/local/opt/wct
 }

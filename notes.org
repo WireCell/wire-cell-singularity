@@ -460,3 +460,71 @@ ERROR: fake setup failed
 
 Dunno what's up with that.
 
+
+* CVMFS
+
+Instead of bundling immediately out-of-date binaries into the image a
+more flexible way is to provide a base OS and then delegate to CVMFS
+to provide UPS products or other external software dependencies.  A
+Singularity image may be created to handle CVMFS service but here it's
+assumed provided by the host OS.
+
+- [[https://cernvm.cern.ch/portal/filesystem/downloads][CVMFS download instructions]]
+- [[https://cernvm.cern.ch/portal/filesystem/quickstart][CVMFS quickstart]] (highlights given below)
+
+After downloading the RPM/DEB that sets up the CVMFS package
+repository and installing the packages by following the links below do
+the following on your host OS:
+
+#+BEGIN_EXAMPLE
+  $ sudo emacs /etc/cvmfs/default.local
+#+END_EXAMPLE
+
+Add:
+
+#+BEGIN_EXAMPLE
+CVMFS_REPOSITORIES=larsoft.opensciencegrid.org,uboone.opensciencegrid.org,dune.opensciencegrid.org
+CVMFS_HTTP_PROXY="DIRECT"
+CVMFS_HTTP_PROXY="http://my.local.proxy:1234;DIRECT"
+#+END_EXAMPLE
+
+If you have a local CVMFS proxy, best to put them in front of ~DIRECT~.  
+
+Check if things work:
+
+#+BEGIN_EXAMPLE
+# cvmfs_config probe 
+Probing /cvmfs/larsoft.opensciencegrid.org... OK
+Probing /cvmfs/uboone.opensciencegrid.org... OK
+Probing /cvmfs/dune.opensciencegrid.org... OK
+#+END_EXAMPLE
+
+You can then use a generic SL7 image with the host OS's ~/cvmfs~
+bind-mounted.
+
+#+BEGIN_EXAMPLE
+  n$ wcsing.sh wct0.8.0-ub1804.simg bash.rc /cvmfs
+
+  c$ source /cvmfs/larsoft.opensciencegrid.org/products/setup
+  c$ ups list -aK+ wirecell
+  c$ setup wirecell v0_9_1 -q c2:prof
+#+END_EXAMPLE
+
+The first time any command touches parts of ~/cvmfs~ it will take a
+long time as files are downloaded.  Subsequent commands should be
+faster.  
+
+After setting up some recent ~wirecell~ one can build WCT from source
+by making use of the existing script that configures the build using
+information from UPS environment variables.
+
+#+BEGIN_EXAMPLE
+  c$ cd wire-cell-build/
+  c$ ./waftools/wct-configure-for-ups.sh install-ups-gcc
+#+END_EXAMPLE
+
+or, to use Clang
+
+#+BEGIN_EXAMPLE
+  c$ CC=clang CXX=clang++ ./waftools/wct-configure-for-ups.sh install-ups-clang
+#+END_EXAMPLE
