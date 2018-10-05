@@ -483,9 +483,18 @@ the following on your host OS:
 Add:
 
 #+BEGIN_EXAMPLE
+# required
 CVMFS_REPOSITORIES=larsoft.opensciencegrid.org,uboone.opensciencegrid.org,dune.opensciencegrid.org
-CVMFS_HTTP_PROXY="DIRECT"
 CVMFS_HTTP_PROXY="http://my.local.proxy:1234;DIRECT"
+
+# optional but recomended:
+
+# limit how much cache is used on your computer, units in MB
+CVMFS_QUOTA_LIMIT=25000
+
+# Some default is chosen (/var/lib/cvmfs/shared).
+# Best to put the cache on your fastest disk which has enough space.
+CVMFS_CACHE_BASE=/mnt/ssd/cvmfs
 #+END_EXAMPLE
 
 If you have a local CVMFS proxy, best to put them in front of ~DIRECT~.  
@@ -503,15 +512,18 @@ You can then use a generic SL7 image with the host OS's ~/cvmfs~
 bind-mounted.
 
 #+BEGIN_EXAMPLE
-  n$ wcsing.sh wct0.8.0-ub1804.simg bash.rc /cvmfs
+  n$ wcsing.sh sl7.simg bash.rc /cvmfs
 
   c$ source /cvmfs/larsoft.opensciencegrid.org/products/setup
   c$ ups list -aK+ wirecell
   c$ setup wirecell v0_9_1 -q c2:prof
 #+END_EXAMPLE
 
-The first time any command touches parts of ~/cvmfs~ it will take a
-long time as files are downloaded.  Subsequent commands should be
+Notes:
+
+- Todo is to update [[./wclsdev.rc]] to work in this mode.  Above we use the more generic [[./bash.rc]].
+- The first time any command touches parts of ~/cvmfs~ it will take a
+long time as files are downloaded.  Subsequent commands go be
 faster.  
 
 After setting up some recent ~wirecell~ one can build WCT from source
@@ -542,4 +554,3 @@ in order to use the build.  After which this should let tests pass:
   c$ ./wcb --alltests
 #+END_EXAMPLE
 
-Todo is to update [[./wclsdev.rc]] to work in this mode.
