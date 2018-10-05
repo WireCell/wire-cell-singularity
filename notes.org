@@ -528,3 +528,18 @@ or, to use Clang
 #+BEGIN_EXAMPLE
   c$ CC=clang CXX=clang++ ./waftools/wct-configure-for-ups.sh install-ups-clang
 #+END_EXAMPLE
+
+Then:
+
+#+BEGIN_EXAMPLE
+  c$ ./wcb -p --notests install
+#+END_EXAMPLE
+
+That install directory will need to be added to your ~LD_LIBRARY_PATH~
+in order to use the build.  After which this should let tests pass:
+
+#+BEGIN_EXAMPLE
+  c$ ./wcb --alltests
+#+END_EXAMPLE
+
+Todo is to update [[./wclsdev.rc]] to work in this mode.
