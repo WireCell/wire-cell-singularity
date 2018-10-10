@@ -21,6 +21,7 @@ singularity exec \
             LD_LIBRARY_PATH=/usr/local/lib:/usr/local/opt/wct/lib \
             TERM="$TERM" DISPLAY="$DISPLAY" PAGER="$PAGER" EDITOR="$EDITOR" LANG=C \
             HOME="$HOME" LOGNAME="$LOGNAME" XAUTHORITY="$XAUTHORITY" \
+            simg="$simg" \
             /bin/bash $rcfile
 
 

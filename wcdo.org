@@ -1,0 +1,21 @@
+#+title wcdo
+
+Do stuff with Wire-Cell.
+
+* Getting started
+
+Copy this script and make sure it is executable.
+
+ - [[https://raw.githubusercontent.com/WireCell/wire-cell-singularity/master/wcdo.sh][wcdo.sh]]
+
+Pick a directory with several GB of space to work in and run a few ~wcdo.sh~ commands:
+
+#+BEGIN_EXAMPLE
+  $ mkdir wcdowork
+  $ cd wcdowork
+  $ wcdo.sh init
+  $ wcdo.sh get-image sl7 
+  $ wcdo.sh make-project myproj sl7
+#+END_EXAMPLE
+
+

@@ -1,0 +1,164 @@
+
+
+
+
+
+* What's here
+
+This repo holds:
+
+ - Singularity recipes (~Singularity.*~ files) with which to build
+   Singularity containers.  Some pre-built images may be available at
+   https://www.phy.bnl.gov/~bviren/simg/
+
+ - A shell scripts to execute a container (~*wcsing.sh~) and
+
+ - Bash configuration files (~*.rc~) to provide some environment variables and functions.
+
+Depending on how you mix these three files you may achieve various
+goals.  What follows is a tour of some example ways to use this repo's
+files.  It is assumed you have already downloaded or built the
+referenced files. The example commands use a ~n$~ and a ~c$~ prompt
+for commands run in your *native* and *container* environment,
+respectively.
+
+* Run ~wire-cell~
+
+You can run ~wire-cell~ command line interface as an end user with an
+image built from a recent release.
+
+#+BEGIN_EXAMPLE
+  n$ wcsing.sh wct0.8.0-ub1804.simg wct.rc
+
+  c$ wire-cell --help
+  c$ echo $WIRECELL_PATH
+  /usr/local/share/wirecell/data:/usr/local/share/wirecell/cfg
+#+END_EXAMPLE
+
+This image was built with [[./Singularity.wct0.8.0-ub1804]].
+
+* Develop WCT
+
+The above image and command may be extended to provide a development
+environment for WCT.  Provide a native directory to "bind mount" over
+the location of the WCT installation that was provided by the image:
+
+#+BEGIN_EXAMPLE
+  n$ wcsing.sh wct0.8.0-ub1804.simg wct.rc /path/to/space:/usr/local/opt/wct
+
+  c$ cd /path/to/my/wct
+  c$ wct-configure
+  c$ ./wcb -p install
+  c$ which wire-cell
+  /usr/local/opt/wct/bin/wire-cell
+#+END_EXAMPLE
+
+Notes: 
+
+- The ~wct-configure~ is a bash function provided by ~wct.rc~.  
+- You can eschew this function and install wherever you want but
+  beware that your environment is set up to pick up the WCT under
+  ~/usr/local~
+- You may give ~wcb~ the option ~--notests~ to save some time to skip
+  building and running the tests.  If included, they should all
+  complete.
+
+* Run WC/LS
+
+A full "kitchen sink" image is provided which includes everything
+needed to run Wire-Cell Toolkit components integrated into /art/ +
+LArSoft framework.  The environment is provided by packages in the
+form of Fermilab UPS "products" which correspond to a particular
+release.  
+
+#+BEGIN_EXAMPLE
+  n$ wcsing.sh wcls703-sl7.simg wclsrun.rc
+
+  c$ which wire-cell
+  /usr/local/ups/wirecell/v0_7_0a/Linux64bit+3.10-2.17-e17-prof/bin/wire-cell
+  c$ wire-cell --help
+  c$ art --help
+#+END_EXAMPLE
+
+Notes
+
+ - The ~wcls703-sl7.simg~ has WCT version 0.7.0.
+ - It was build with [[./Singularity.sl7wclsdev]]
+
+* Develop WC/LS
+
+The simultaneous development of Wire-Cell Toolkit and LArSoft requires
+substantial setup depending on your goals.  You can extend the above
+image for *incremental* changes.  For example you may need to:
+
+ - upgrade external dependencies in the form of new UPS "products" to
+   satisfy recent changes in WCT development.
+
+ - develop WCT and install it into a ~wirecell~ UPS product area so it
+   may be used in a WC/LS job.  
+
+ - directly develop LArSoft packages or simply rebuild because they
+   depend upgraded externals or changes in WCT described above.  This
+   most likely means rebuilding/developing the ~larwirecell~ package.
+
+The above image can be extended to perform these tasks by providing
+space for a ~/usr/local/ups-dev~ directory to hold new UPS products.
+
+#+BEGIN_EXAMPLE
+  n$ wcsing.sh wcls703-sl7.simg wclsdev.rc \
+     /path/to/storage:/usr/local/ups-dev
+
+  c$ ups list -aK+ larsoft
+  "larsoft" "v07_03_00" "Linux64bit+3.10-2.17" "e17:prof" "" 
+  c$ wclsdev-ups-version larsoft
+  v07_03_00
+  c$ wclsdev-ups-version wirecell
+  v0_7_0a
+
+  c$ wclsdev-<TAB><TAB>
+  wclsdev-fsck-ups       wclsdev-setup          wclsdev-ups-quals
+  wclsdev-init           wclsdev-srcs           wclsdev-ups-version
+  wclsdev-path           wclsdev-ups-declare    wclsdev-wct-configure
+#+END_EXAMPLE
+
+The ~wclsdev-*~ bash functions simplify many of the common task you
+may need to perform.  For now, they are "documented" by typing, for
+example:
+
+#+BEGIN_EXAMPLE
+  c$ type wclsdev-init
+#+END_EXAMPLE
+
+As time goes on this image will get further and further behind.  You
+may instead wish to provide the entire ~/usr/local/ups~ area (and
+maybe also ~ups-dev~) yourself and use a much smaller image.  This can
+be done like so:
+
+#+BEGIN_EXAMPLE
+  n$ wcsing.sh wcls703-sl7.simg wclsdev.rc \
+     /path/to/storage/ups:/usr/local/ups \
+     /path/to/storage/ups-dev:/usr/local/ups-dev
+#+END_EXAMPLE
+
+Here the ~/path/to/storage/ups~ is some directory that you can
+populate "in the usual way" with officially built UPS products using
+the ~pullProducts~ script.
+
+
+* Yet more simplification
+
+The problem with containers is that it now lets us have many
+environments to choose from.  Managing this is left as an exercise to
+you dear reader but you may consider writing something like
+[[./sourceme.bv]].  With this I package:
+
+ - the location of my container images
+ - the location and bind-mount points of any native directories
+
+into a bash function which is named based on my task.  I name each
+staring with ~sing-~ so my shell tab completion tells me what's
+available.  
+
+* Etc
+
+Some outdated notes are in [[./notes.org]].

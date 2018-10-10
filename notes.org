@@ -554,3 +554,62 @@ in order to use the build.  After which this should let tests pass:
   c$ ./wcb --alltests
 #+END_EXAMPLE
 
+* Patterns
+
+** Activities
+
+- wct :: end-user running of provided WCT binaries and all external dependencies.
+  - ~wire-cell~ and ~WIRECELL_PATH~ set ready to go as soon as container is entered
+  - externals provided by container
+
+- wctdev :: *wct* + develop WCT (modify source and build/install/run)
+  - WCT src area must be in bind-mount list
+  - externals provided by container
+
+- wcls :: end-user running of provided WCT + larsoft binaries and all dependencies.
+
+- wclsdev :: *wcls* + develop WCT and LS (modify either source and build/install/run)
+
+
+- wct install directory
+- if wct install type (UPS or local)
+- wct src directory
+- wct externals type (UPS or local, determines ~./wcb configure~ and runtime environment setup)
+- ~mrb~ area or version/packages
+
+=/wcdo/src/wc/{build,gen,sigproc}/=
+=/wcdo/src/ls/{build_*,srcs}/=
+=/wcdo/{bin,lib,include,src,share,ups}/=
+
+- end-user running of stand-alone WCT (~wire-cell~)
+- developing of stand-alone WCT (~wire-cell~) on multiple platforms
+- end-user running of WC/LS 
+- end-user running of WC/LS and experiment
+- developing WC/LS on multiple platforms
+- CI WCT on multiple platforms
+- CI WC/LS on multiple platforms
+
+Want way to encode intention in native and container scripts so I don't have to remember all the tedium.
+
+Eg, want:
+
+#+BEGIN_EXAMPLE
+  n$ <ncmd> <activityname>
+#+END_EXAMPLE
+
+and immediately be ready to do "~<activity>~".  This needs encoding intention in some user-provided init script.
+
+** Directories
+
+- (ro) Host-based primary UPS products area
+  - local file system
+  - /cvmfs
+- (rw) "dev" UPS products area
+- (rw) WCT source area(s)
+- (rw) LS source area(s) (~mrb~ controlled)
+- (ro) WCT ~data~ and ~cfg~ areas.
+- (ro/rw) "data" areas
+- (rw) installation target directory for WCT 
+  - For wclsdev, a UPS-declared area is needed
+
+

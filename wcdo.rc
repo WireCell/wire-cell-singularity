@@ -1,0 +1,276 @@
+#!/bin/bash
+# A bash rc file for use inside a wcdo image.
+
+
+PS1="[$wcdo_simg]\u@\h:\W> "
+
+# some general helpers
+goto () {
+    pushd $1 >& /dev/null
+}
+goback () {
+    popd >& /dev/null
+}
+path-remove () {
+    local IFS=':'
+    local NEWPATH
+    local DIR
+    local PATHVARIABLE=${2:-PATH}
+    for DIR in ${!PATHVARIABLE} ; do
+        if [ "$DIR" != "$1" ] ; then
+            NEWPATH=${NEWPATH:+$NEWPATH:}$DIR
+        fi
+    done
+    export $PATHVARIABLE="$NEWPATH"
+}
+
+path-prepend () {
+    path-remove "$1" "$2"
+    local PATHVARIABLE="${2:-PATH}"
+    export $PATHVARIABLE="$1${!PATHVARIABLE:+:${!PATHVARIABLE}}"
+}
+
+path-append () {
+    path-remove "$1" "$2"
+    local PATHVARIABLE="${2:-PATH}"
+    export $PATHVARIABLE="${!PATHVARIABLE:+${!PATHVARIABLE}:}$1"
+}
+
+
+wcdo-init () {
+    if [ -n "$wcdo_init" ] ; then
+        echo "$wcdo_init"
+        $wcdo_init
+    else
+        echo "no init command defined in your project file"
+    fi
+    if [ -n "$PRODUCTS" ] ; then
+        path-prepend $wcdo_ups_products PRODUCTS
+        echo "PRODUCTS=$PRODUCTS"
+    fi
+}
+
+
+wcdo-wirecell-path () {
+    if [ -z "$1" ] ; then
+        echo "WIRECELL_PATH=$WIRECELL_PATH"
+        return
+    fi
+
+    # set this, but warning that calling "setup" with the "wirecell"
+    # UPS product will likely destroy it.
+    if [ "$1" = "wcdo" -o "$1" = "default" ] ; then
+        shift
+        for one in ${wcdo_wct_data} ${wcdo_wct_cfg} $@
+        do
+            path-prepend $one WIRECELL_PATH 
+        done
+    fi
+    for one in $@
+    do
+        path-prepend $one WIRECELL_PATH
+    done
+    export WIRECELL_PATH
+}
+
+
+##
+## UPS helpers
+## 
+
+# Return a version for newest package
+wcdo-ups-version () {
+    local pkg="${1:-larsoft}"
+    ups list -aK+ "$pkg" | tail -1 | awk '{print $2}' | sed -e 's/"//g'
+}
+
+# Return the quals for a most reacent package
+wcdo-ups-quals () {
+    local pkg="${1:-larsoft}"
+    ups list -aK+ "$pkg" | tail -1 | awk '{print $4}' | sed -e 's/"//g'
+}
+    
+# declare a UPS product
+wcdo-ups-declare () {
+    local pkg="${1}"
+    local ver="${2}"
+    local quals="${3}"
+    local relver="${4}"
+    local relquals="${5:-$quals}"
+    if [ -z "$relver" ] ; then
+        echo "wcdo-ups-declare <package> <version> <quals> <fromversion> [fromquals]"
+        return -1
+    fi
+
+    local upsdir="${wcdo_ups_products}/${pkg}/${ver}/ups"
+
+    if [ -d "$upsdir" ] ; then  # fixme: premature test?
+        echo "wcdo-ups-declare: already declared: $upsdir"
+        return
+    fi
+    mkdir -p $upsdir
+
+    local flavor="$(ups flavor)"
+    local declare_cmd=$(ups copy $pkg $relver -q $relquals -G "$pkg $ver -f $flavor -q $quals  -r ${pkg}/${ver} -z $wcdo_ups_products -U ups -m $pkg.table")
+    $declare_cmd
+    echo "$(dirname $upsdir)"
+}
+
+
+# configure WCT source for building against UPS externals.
+wcdo-ups-wct-configure-source () {
+    if [ -z "$UPS_DIR" ] ; then
+        echo "Must first setup UPS"
+        echo "try: wcdo-init"
+        return
+    fi
+    if [ -z "$WIRECELL_VERSION" ] ; then
+        echo "Must first 'setup wirecell' to a version declared in the local UPS products area"
+        echo 'try: ups list -aK+ wirecell | grep $(ups flavor)'
+        echo "try: wcdo-ups-declare wirecell <version> ..."
+        return
+    fi
+    if [ ! -d "$wcdo_ups_products/wirecell/$WIRECELL_VERSION" ] ; then
+        echo "Must first 'setup wirecell' to a version declared in the local UPS products area"
+        echo "try wcdo-ups-declare wirecell <version> ..."
+        return
+    fi
+    
+    goto $wcdo_wcdev
+    if [ ! -f wcb ] ; then
+        echo "wcdo-ups-wct-configure-source: no WCT source: $(wcdo_wcdev)"
+        return
+    fi
+
+    # no better way?
+    if [ -n "$SETUP_CLANG" ] ; then
+        export CC=clang
+        export CXX=clang++
+    fi
+    ./wcb configure \
+          --with-tbb=no \
+          --with-jsoncpp="$JSONCPP_FQ_DIR" \
+          --with-jsonnet="$JSONNET_FQ_DIR" \
+          --with-eigen-include="$EIGEN_DIR/include/eigen3" \
+          --with-root="$ROOTSYS" \
+          --with-fftw="$FFTW_FQ_DIR" \
+          --with-fftw-include="$FFTW_INC" \
+          --with-fftw-lib="$FFTW_LIBRARY" \
+          --boost-includes="$BOOST_INC" \
+          --boost-libs="$BOOST_LIB" \
+          --boost-mt \
+          --prefix=$WIRECELL_FQ_DIR || return 1
+    echo "wcdo-ups-wct-configure-source:"
+    echo -e "\twill install to $WIRECELL_FQ_DIR"
+    echo -e "\tleaving you in source directory.\n\ttype 'goback' to return to your previous directory"
+    echo -e "\tready to run:\n\t./wcb -p --notests install"
+
+}
+
+
+
+
+wcdo-ups-pullproducts () {
+    local ppurl="http://scisoft.fnal.gov/scisoft/bundles/tools/pullProducts"
+    if [ -d /cvmfs ] ; then
+        echo "Warning: you have /cvmfs are you sure you want to pull UPS products?"
+        echo "Hit Ctrl-c to cancel"
+    fi
+    if [ "$(readlink -f $1)" != "$(readlink -f $wcdo_ups_products)" ] ; then
+        echo "Warning: running pullProducts in unconventional directory: $1"
+    fi
+    goto "$1"
+    if [ ! -f pullProducts ] ; then
+        wget "$ppurl"
+    fi
+    chmod +x pullProducts
+    ./pullProducts $@
+    goback
+}
+    
+
+
+# Initialize an MRB-controlled development area and environment to use it.
+wcdo-mrb-init () {
+
+    local proj="$wcdo_mrb_project_name"
+    local pver="$wcdo_mrb_project_version"
+    local quals="$wcdo_mrb_project_quals"
+    if [ -z "$proj" ] ; then
+        echo "Must define wcdo_mrb_* variables in your wcdo project file"
+        return
+    fi
+    local quals_="$(echo $quals | tr ':' '_')"
+
+    goto "$wcdo_mrb_dev"
+
+    export MRB_PROJECT="$proj"
+    setup mrb
+    setup "$proj" "$pver" -q "$quals"
+
+    # first time through
+    if [ -z "$MRB_TOP" ] ; then
+        PS1="[mrb]$PS1"
+    fi
+
+    local localsetup="localProducts_${proj}_${pver}_${quals_}/setup"
+    if [ ! -f "$localsetup" ] ; then
+        mrb newDev
+    fi
+    source "$localsetup"
+
+    echo "wcdo-mrb-init: "
+    echo -e "\tenvironment modified and cd'ed to: $(pwd)"
+    echo -e "\ttype 'goback' to return to your original directory"
+
+}
+
+wcdo-mrb-goto () {
+    if [ -z "$MRB_TOP" ] ; then
+        wcdo-mrb-init
+    fi
+    goto $MRB_TOP
+}
+
+# Add a source package to an MRB area
+wcdo-mrb-add-source () {
+    local pkg="$1"; shift
+    local feature="$1"; shift
+    local committish="$1"; shift
+
+    if [ -z "$pkg" ] ; then
+        echo "usage: wcdo-mrb-add-source <package> <feature> <commitish>"
+        echo -e "\t<package> the git repo and local directory name, eg \"larwirecell\""
+        echo -e "\t<feature> the feature branch name, eg \"myuser_myfeature\""
+        echo -e "\t<committish> the git commit or version tag or similar to start your feature branch"
+        echo -e "\thint: \"ups list -aK+ <packagename>\""
+        return
+    fi
+
+    if [ -z "$MRB_TOP" ] ; then
+        wcdo-mrb-init
+    fi
+
+    goto "${MRB_SOURCE}"
+    if [ -d "$pkg" ] ; then
+        echo "wcdo-mrb-add-source: package source \"$pkg\" already exists"
+        return
+    fi
+    mrb g "$pkg"
+    cd "$pkg"
+    local branch="${feature}-branch"
+    local featbr="feature/${feature}"
+    if git branch -a | grep "\b${featbr}\b" > /dev/null ; then
+        echo "wcdo-mrb-add-source: feature exists, using it: $feat"
+        git checkout "$featbr"
+    elif git branch -a | grep "\b$branch\b" > /dev/null ; then
+        echo "wcdo-mrb-add-source: starting branch exists, using it: $branch"
+        git flow feature start "$feature" "$branch"
+    else
+        echo "wcdo-mrb-add-source: creating starting branch $branch and feature $tag"
+        git checkout -b "$branch" "$committish"
+        git flow feature start "$feature" "$branch"
+    fi
+    popd > /dev/null 2>&1
+}
+
