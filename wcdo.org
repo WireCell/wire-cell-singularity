@@ -4,7 +4,7 @@ Do stuff with Wire-Cell.
 
 * Getting started
 
-Copy this script and make sure it is executable.
+Copy this script somewhere in your ~$PATH~ and make sure it is executable.
 
  - [[https://raw.githubusercontent.com/WireCell/wire-cell-singularity/master/wcdo.sh][wcdo.sh]]
 
@@ -16,6 +16,164 @@ Pick a directory with several GB of space to work in and run a few ~wcdo.sh~ com
   $ wcdo.sh init
   $ wcdo.sh get-image sl7 
   $ wcdo.sh make-project myproj sl7
+  $ ./wcdo-myproj.sh
 #+END_EXAMPLE
+
+You are now inside the container environment.  Many bash functions are
+available and may be discovered with tab-completion:
+
+#+BEGIN_EXAMPLE
+  [sl7]user@host:wcdowork> wcdo-TAB
+#+END_EXAMPLE
+
+* Getting started commands
+
+Each of the ~wcdo.sh~ commands above are now described.  In particular
+users should read the section describing ~make-project~.
+
+** ~init~
+
+This prepares the *current directory* to follow some conventions.
+
+ - downloads WCT source, data and cfg
+ - makes some sub directory stub
+ - downloads a recent copy of [[https://github.com/WireCell/wire-cell-singularity/blob/master/wcdo.rc][wcdo.rc]] to current directory
+
+** ~get-image~
+
+This downloads a Singularity image based on its name.  By default it
+simply downloads the image to the current working directory.  You may
+instead have a local cache of images and set what URL they are
+downloaded from.  Get a little help by running with no arguments:
+
+#+BEGIN_EXAMPLE
+$ ./wcdo.sh get-image 
+usage: wcdo get-image <name> [dir [url]]
+	<name>	an Singularity image name
+	<dir>	a local directory to find images
+	<url>	base URL to find images
+#+END_EXAMPLE
+
+** ~make-project~
+
+This command generates files in the workspace.  Some of these files
+*should* be modified by the user and some should *not*.  Scripts
+(ending in ~.sh~) contain code that executes inside your native OS.
+RC files (~.rc~) contain code that executes inside the container.
+
+These generated files should *not* be modified manually:
+
+- ~wcdo.rc~ :: a downloaded file holding many helpful bash functions.
+- ~wcdo-<name>.rc~ :: a generated RC file which defines shell environment for the project.  
+- ~wcdo-<name>.sh~ :: a generated script which is used to enter the project of the given name.  
+
+These files are either generated or may be created by the user.  The
+user *should* modify them.  They will not be overwritten by ~wcdo~.
+
+- ~wcdo-local.sh~ :: Any shell code written here will be run by any ~wcdo-<name>.sh~ script.
+- ~wcdo-local-<name>.sh~ :: Any shell code written here will be only by the matching ~wcdo-<name>.sh~ script.
+
+- ~wcdo-local.rc~ :: Any shell code written here will be run in the container for any project.
+- ~wcdo-local-<name>.rc~ :: Any shell code written here will be run in the container for only the matching project.
+
+* Projects
+
+As already introduced, using the container is organized around the
+concept of a "project".  The idea is to bundle all the information for
+a particular task so that you may easily return to it days or weeks
+later after all the annoying details have long left your mind.
+
+Projects are mainly defined and customized by the
+~wcdo-local-<name>.{rc,sh}~ files.  The files similarly named but
+lacking the "~local~" label should not be manually modified as they
+may be updated when improvements to ~wcdo.sh~ are made.  
+
+** Customizing native side
+
+You may wish to modify how you start Singularity by editing the
+~wcdo-local.sh~ to control all projects or just ~wcdo-local-<name>.sh~
+to control one project.  For example, if the command ~singularity~ is
+installed in some unusual location you may want to add this to ~PATH~
+
+#+BEGIN_EXAMPLE
+  $ cat wcdo-local.sh 
+  PATH=$HOME/opt/singularity/bin:$PATH
+#+END_EXAMPLE
+
+** Customizing container side
+
+You may wish to modify or augment the environment provided already by
+~wcdo.rc~ and ~wcdo-<name>.rc~.  Making a project creates a skeleton
+of ~wcdo-local-<name>.rc~ which names several variable which help to
+reduce how many things you have to remember.  You may also want to
+call a few commands each time you enter the project's container.  For
+example, here is a modified version of a generated
+~wcdo-local-<name>.rc~ stub:
+
+#+BEGIN_EXAMPLE
+  $ cat wcdo-local-cldev.rc
+  #!/bin/bash
+
+  # This is a local wcdo rc file for project cldev.
+  # It was initally generated but is recomended for customizing by you, dear user.
+  # It is included at the end of the main RC files.
+    
+  # These are optional but required if wcdo-mrb-* commands are to be used.
+  wcdo_mrb_project_name="larsoft"
+  wcdo_mrb_project_version="v07_07_00"
+  wcdo_mrb_project_quals="c2:prof"
+
+  # Additional variables may be usefully set since this file was
+  # first generated.  
+
+  # It is perhaps useful to end this with some command to be called 
+  # on each entry to the contaner.
+  # The wcdo-* functions try to be idempotent.
+  source /cvmfs/larsoft.opensciencegrid.org/products/setup
+  wcdo-mrb-init
+  wcdo-mrb-add-source larwirecell bviren_v070200 v07_02_00
+
+#+END_EXAMPLE
+
+What it does:
+
+- sets info required for ~mrb~ to do its thing
+- sources a UPS ~setup~ script from CVMFS
+- calls two ~wcdo-*~ commands to assure an MRB development area is in some expected state.
+
+As the comments state, the ~wcdo-*~ functions try to be /idempotent/
+so they can be safely called more than once.
+
+
+* In-container environment
+
+The directory structure is opinionated.  Everything that the user might work with is mounted under:
+
+#+BEGIN_EXAMPLE
+  /wcdo
+#+END_EXAMPLE
+
+This is the same directory as used ~wcdo.sh init~ etc in the section [[Getting started]].
+
+The environment is populated with various ~wcdo-*~ functions to try to
+make life with UPS/mrb easier.  TAB-completion will show a list.  Some
+give a "help" if run without any arguments.  You can also dump their
+definitions.
+
+#+BEGIN_EXAMPLE
+  $ type wcdo-mrb-goto 
+  wcdo-mrb-goto is a function
+  wcdo-mrb-goto () 
+  { 
+      if [ -z "$MRB_TOP" ]; then
+          wcdo-mrb-init;
+      fi;
+      goto $MRB_TOP
+  }
+#+END_EXAMPLE
+
+Any global environment variables are named ~wcdo_*~ and are kept to a
+minimum and used to hold static information.  We saw some in use above
+defining values that ~wcdo-mrb-init~ consumes.
 
 
