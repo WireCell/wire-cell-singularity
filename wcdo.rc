@@ -37,20 +37,26 @@ path-append () {
 }
 
 
-wcdo-init () {
-    if [ -n "$wcdo_init" ] ; then
-        echo "$wcdo_init"
-        $wcdo_init
-    else
-        echo "no init command defined in your project file"
-    fi
-    if [ -n "$PRODUCTS" ] ; then
-        path-prepend $wcdo_ups_products PRODUCTS
-        echo "PRODUCTS=$PRODUCTS"
-    fi
+
+
+wcdo-wirecell-path-help () {
+    cat <<EOF 1>&2
+Set or display the WIRECELL_PATH
+
+usage: wcdo-wirecell-path [ default <path> <path> ... ]
+
+With no argument, print the current path.
+
+A special "<path>" given as the literal string "default" will cause
+the default directories for the container to be used.
+
+Otherwise a <path> argument is prepended.
+
+Note: the UPS product "wirecell" destroys the WIRECELL_PATH so this
+function will be useful after any "setup" of "wirecell" UPS product.
+
+EOF
 }
-
-
 wcdo-wirecell-path () {
     if [ -z "$1" ] ; then
         echo "WIRECELL_PATH=$WIRECELL_PATH"
@@ -59,16 +65,16 @@ wcdo-wirecell-path () {
 
     # set this, but warning that calling "setup" with the "wirecell"
     # UPS product will likely destroy it.
-    if [ "$1" = "wcdo" -o "$1" = "default" ] ; then
-        shift
-        for one in ${wcdo_wct_data} ${wcdo_wct_cfg} $@
-        do
-            path-prepend $one WIRECELL_PATH 
-        done
-    fi
     for one in $@
     do
-        path-prepend $one WIRECELL_PATH
+        if [ "$one" = "wcdo" -o "$one" = "default" ] ; then
+            for one in ${wcdo_wct_data} ${wcdo_wct_cfg}
+            do
+                path-prepend $one WIRECELL_PATH 
+            done
+        else
+            path-prepend $one WIRECELL_PATH
+        fi
     done
     export WIRECELL_PATH
 }
@@ -91,6 +97,22 @@ wcdo-ups-quals () {
 }
     
 # declare a UPS product
+wcdo-ups-declare-help () {
+    cat <<EOF 1>&2
+Prepare an empty UPS product area based on an existing one.
+
+usage: wcdo-ups-declare package version quals fromversion [fromquals]
+
+An example:
+
+  wcdo-ups-declare wirecell DEVEL c2:prof v0_9_1
+
+To find suitable arguments:
+
+  ups list -aK+ wirecell
+
+EOF
+}
 wcdo-ups-declare () {
     local pkg="${1}"
     local ver="${2}"
@@ -98,7 +120,7 @@ wcdo-ups-declare () {
     local relver="${4}"
     local relquals="${5:-$quals}"
     if [ -z "$relver" ] ; then
-        echo "wcdo-ups-declare <package> <version> <quals> <fromversion> [fromquals]"
+        wcdo-ups-declare-help
         return -1
     fi
 
@@ -118,10 +140,26 @@ wcdo-ups-declare () {
 
 
 # configure WCT source for building against UPS externals.
+wcdo-ups-wct-configure-source-help () {
+    cat <<EOF > 1>&2
+Configure WCT source using UPS environment.
+
+  wcdo-ups-wct-configure
+
+You must first set up a UPS environment which includes all externals
+needed by WCT.  There are two recomended ways to do this:
+
+1) No installation: use "ups list -aK+ wirecell" and pick a recent
+release to "setup".
+
+2) With install: use wcdo-ups-declare to make a UPS product in which
+to install and then "setup" this.
+
+EOF
+}
 wcdo-ups-wct-configure-source () {
     if [ -z "$UPS_DIR" ] ; then
         echo "Must first setup UPS"
-        echo "try: wcdo-init"
         return
     fi
     if [ -z "$WIRECELL_VERSION" ] ; then
@@ -169,12 +207,64 @@ wcdo-ups-wct-configure-source () {
 
 
 
+# Modify all product_deps files to set a different version for a package.
+wcdo-mrb-fsck-ups-help () {
+    cat <<EOF 1>&2
+Fix the version for a package in all ups/products_deps file in all MRB
+source packages.
 
+  usage: wcdo-mrb-fsck-ups package version
+
+EOF
+}
+wcdo-mrb-fsck-ups () {
+    local pkg="$1"; shift;
+    local ver="$1"; shift
+
+    wcdo-mrb-init
+    local base="$MRB_TOP"
+
+    if [ ! -d "$base/srcs/" ] ; then
+        echo "wcdo-mrb-fsck-ups: no sources in $base"
+        return
+    fi
+
+    for pd in $base/srcs/*/ups/product_deps
+    do
+        echo -e "\t$pd"
+        sed  -e "s/^${pkg}\b.*/${pkg}\t${ver}/" -i $pd
+    done
+
+    echo "wcdo-mrb-fsck-ups: before running 'mrbsetenv' you must run:"
+    echo -e "\tunsetup $pkg"
+
+}    
+
+wcdo-ups-pullproducts-help () {
+    cat <<EOF 1>&2
+Download and install UPS products.
+
+usage: wcdo-ups-pullproducts [pullProducts args] 
+
+The arguments are identical to the "pullProducts" script.  This script
+will download pullProducts if needed.  
+
+The nominal location for UPS products in a wcdo container is
+
+  /wcdo/lib/ups
+
+Example:
+
+  wcdo-ups-pullproducts /wcdo/lib/ups slf7 larsoft-v07_07_01 s70-e17 prof
+
+EOF
+}
 wcdo-ups-pullproducts () {
     local ppurl="http://scisoft.fnal.gov/scisoft/bundles/tools/pullProducts"
     if [ -d /cvmfs ] ; then
         echo "Warning: you have /cvmfs are you sure you want to pull UPS products?"
         echo "Hit Ctrl-c to cancel"
+        sleep 1
     fi
     if [ "$(readlink -f $1)" != "$(readlink -f $wcdo_ups_products)" ] ; then
         echo "Warning: running pullProducts in unconventional directory: $1"
@@ -191,13 +281,30 @@ wcdo-ups-pullproducts () {
 
 
 # Initialize an MRB-controlled development area and environment to use it.
+wcdo-mrb-init-help () {
+    cat <<EOF 1>&2
+Initialize MRB-controlled development area.
+
+usage: wcdo-mrb-init [name [version [quals]]]
+
+If an option is not given then a variable is consulted:
+
+  wcdo_mrb_project_<option>
+
+When successful, this function modifies your environment and leave
+your current working directory to be that of the top of the
+MRB-controlled development area.
+
+EOF
+}
 wcdo-mrb-init () {
 
-    local proj="$wcdo_mrb_project_name"
-    local pver="$wcdo_mrb_project_version"
-    local quals="$wcdo_mrb_project_quals"
+    local proj="${1:-wcdo_mrb_project_name}" ; shift
+    local pver="${1:-wcdo_mrb_project_version}" ; shift
+    local quals="${1:-wcdo_mrb_project_quals}" ; shift
     if [ -z "$proj" ] ; then
         echo "Must define wcdo_mrb_* variables in your wcdo project file"
+        wcdo-mrb-init-help
         return
     fi
     local quals_="$(echo $quals | tr ':' '_')"
@@ -225,6 +332,14 @@ wcdo-mrb-init () {
 
 }
 
+wcdo-mrb-goto-help () {
+    cat <<EOF 1>&2
+Change to MRB-controlled development area, initializing if needed.
+
+usage: wcdo-mrb-goto
+
+EOF
+}
 wcdo-mrb-goto () {
     if [ -z "$MRB_TOP" ] ; then
         wcdo-mrb-init
@@ -233,17 +348,26 @@ wcdo-mrb-goto () {
 }
 
 # Add a source package to an MRB area
+wcdo-mrb-add-source-help () {
+    cat <<EOF 1>&2
+Add source packages to the MRB-controlled development area
+
+usage: wcdo-mrb-add-source <package> <feature> <commitish>
+
+        <package> the git repo and local directory name, eg "larwirecell"
+        <feature> the feature branch name, eg "myuser_myfeature"
+        <committish> the git commit or version tag or similar to start your feature branch"
+
+        hint: "ups list -aK+ <packagename>"
+EOF
+}
 wcdo-mrb-add-source () {
     local pkg="$1"; shift
     local feature="$1"; shift
     local committish="$1"; shift
 
     if [ -z "$pkg" ] ; then
-        echo "usage: wcdo-mrb-add-source <package> <feature> <commitish>"
-        echo -e "\t<package> the git repo and local directory name, eg \"larwirecell\""
-        echo -e "\t<feature> the feature branch name, eg \"myuser_myfeature\""
-        echo -e "\t<committish> the git commit or version tag or similar to start your feature branch"
-        echo -e "\thint: \"ups list -aK+ <packagename>\""
+        wcdo-mrb-add-source-help
         return
     fi
 

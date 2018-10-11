@@ -228,6 +228,7 @@ The commands are:
 EOF
 }
 
+
 cmd="${1:-help}"; shift
 wcdo-$cmd $@
 
