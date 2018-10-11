@@ -1,14 +1,15 @@
 #+title wcdo
 
-Do stuff with Wire-Cell.
+Do stuff with Wire-Cell in a Singularity container.
 
 * Getting started
 
-Copy this script somewhere in your ~$PATH~ and make sure it is executable.
+Download/copy the following script somewhere in your ~$PATH~ and make sure it is executable.
 
  - [[https://raw.githubusercontent.com/WireCell/wire-cell-singularity/master/wcdo.sh][wcdo.sh]]
 
-Pick a directory with several GB of space to work in and run a few ~wcdo.sh~ commands:
+Pick a directory with several GB of space to work in and run a few
+~wcdo.sh~ commands run in your native OS (the container host OS):
 
 #+BEGIN_EXAMPLE
   $ mkdir wcdowork
@@ -26,10 +27,32 @@ available and may be discovered with tab-completion:
   [sl7]user@host:wcdowork> wcdo-TAB
 #+END_EXAMPLE
 
+Most have a "~-help~" function that will print some help:
+
+#+BEGIN_EXAMPLE
+  [sl7]user@host:wcdowork> wcdo-wirecell-path-help
+
+  Set or display the WIRECELL_PATH
+
+  usage: wcdo-wirecell-path [ default <path> <path> ... ]
+
+  With no argument, print the current path.
+
+  A special "<path>" given as the literal string "default" will cause
+  the default directories for the container to be used.
+
+  Otherwise a <path> argument is prepended.
+
+  Note: the UPS product "wirecell" destroys the WIRECELL_PATH so this
+  function will be useful after any "setup" of "wirecell" UPS product.
+
+#+END_EXAMPLE
+
 * Getting started commands
 
-Each of the ~wcdo.sh~ commands above are now described.  In particular
-users should read the section describing ~make-project~.
+Each of the ~wcdo.sh~ native OS commands above are now described.
+Most importantly, users should read the last section describing the
+~make-project~.
 
 ** ~init~
 
@@ -47,11 +70,11 @@ instead have a local cache of images and set what URL they are
 downloaded from.  Get a little help by running with no arguments:
 
 #+BEGIN_EXAMPLE
-$ ./wcdo.sh get-image 
-usage: wcdo get-image <name> [dir [url]]
-	<name>	an Singularity image name
-	<dir>	a local directory to find images
-	<url>	base URL to find images
+  $ ./wcdo.sh get-image 
+  usage: wcdo get-image <name> [dir [url]]
+          <name>	an Singularity image name
+          <dir>	a local directory to find images
+          <url>	base URL to find images
 #+END_EXAMPLE
 
 ** ~make-project~
@@ -147,18 +170,24 @@ so they can be safely called more than once.
 
 * In-container environment
 
-The directory structure is opinionated.  Everything that the user might work with is mounted under:
+The directory structure is opinionated in order to reduce
+options/complexity.  All user-accessible files are mounted at:
 
 #+BEGIN_EXAMPLE
   /wcdo
 #+END_EXAMPLE
 
-This is the same directory as used ~wcdo.sh init~ etc in the section [[Getting started]].
+This is the same directory as used ~wcdo.sh init~ etc in the section
+[[Getting started]].  The user's home directory is also typically mounted
+by Singularity and additional directories may be mounted by modifying
+the native-side ~.sh~ files.
 
-The environment is populated with various ~wcdo-*~ functions to try to
-make life with UPS/mrb easier.  TAB-completion will show a list.  Some
-give a "help" if run without any arguments.  You can also dump their
-definitions.
+As mentioned above, the environment is populated with various ~wcdo-*~
+functions to try to make life with UPS/mrb easier.  TAB-completion
+will show a list.  Running a function ending in ~-help~ will provide
+some guidance for using its associated function.  You can also dump
+their function bodies to see exactly what they do with the usual Bash
+~type~ command:
 
 #+BEGIN_EXAMPLE
   $ type wcdo-mrb-goto 
@@ -173,7 +202,6 @@ definitions.
 #+END_EXAMPLE
 
 Any global environment variables are named ~wcdo_*~ and are kept to a
-minimum and used to hold static information.  We saw some in use above
-defining values that ~wcdo-mrb-init~ consumes.
-
+minimum and are meant to hold some static "wcdo project" information
+as typically set inside the native-side ~.sh~ files.
 
