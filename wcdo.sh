@@ -183,16 +183,15 @@ WIRECELL_PATH=${wcdo_wct_data}:${wcdo_wct_cfg}
 # Some limited chunks of user environment to pass through.
 PATH=/bin:/usr/bin:/usr/local/bin:/wcdo/bin 
 LD_LIBRARY_PATH=/usr/local/lib:/wcdo/lib 
-TERM="$TERM"
-DISPLAY="$DISPLAY"
-PAGER="$PAGER"
-EDITOR="$EDITOR"
-LANG=C
-TERM=xterm-color
-HOME="$HOME" 
-LOGNAME="$LOGNAME" 
-USER="$USER"
-XAUTHORITY="$XAUTHORITY"
+export TERM="xterm-color"
+export DISPLAY="$DISPLAY"
+export PAGER="$PAGER"
+export EDITOR="$EDITOR"
+export LANG=C
+export HOME="$HOME" 
+export LOGNAME="$LOGNAME" 
+export USER="$USER"
+export XAUTHORITY="$XAUTHORITY"
 
 # Finally include the set of wcdo-* functions.
 source /wcdo/wcdo.rc

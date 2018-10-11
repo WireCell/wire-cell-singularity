@@ -153,6 +153,7 @@ example, here is a modified version of a generated
   # on each entry to the contaner.
   # The wcdo-* functions try to be idempotent.
   source /cvmfs/larsoft.opensciencegrid.org/products/setup
+  path-prepend $wcdo_ups_products PRODUCTS
   wcdo-mrb-init
   wcdo-mrb-add-source larwirecell bviren_v070200 v07_02_00
 
@@ -205,3 +206,37 @@ Any global environment variables are named ~wcdo_*~ and are kept to a
 minimum and are meant to hold some static "wcdo project" information
 as typically set inside the native-side ~.sh~ files.
 
+* Example use
+
+Using the ~wcdo-local-cldev.rc~ described in [[Customizing container
+side]] as the starting point one can quickly do some tasks:
+
+Prepare a new "wirecell" UPS "product" area to receive a WCT
+installation.  To do this requires first the "~setup~" an existing
+~wirecell~ product.
+
+#+BEGIN_EXAMPLE
+  [mrb][sl7]bviren@hierocles:wct> setup wirecell v0_9_1 -q c2:prof
+
+  [mrb][sl7]bviren@hierocles:srcs> wcdo-ups-declare wirecell DEVEL
+  /wcdo/lib/ups/wirecell/DEVEL
+
+  [mrb][sl7]bviren@hierocles:srcs> setup wirecell DEVEL -q c2:prof
+
+#+END_EXAMPLE
+
+The "~ups declare~" step loves to fail in ways that are challenging to
+understand.  If it fails for you, try:
+
+ - check that ~PRODUCTS~ includes ~/wcdo/lib/ups~
+ - nuke ~/wcdo/lib/ups/wirecell/DEVEL*~
+ - sacrifice a goat
+
+Build and install WCT into that UPS "product" area
+
+#+BEGIN_EXAMPLE
+  [mrb][sl7]bviren@hierocles:wct> wcdo-ups-wct-configure-source
+  [mrb][sl7]bviren@hierocles:wct> ./wcb -p --notests install
+#+END_EXAMPLE
+
+Note: I'm having trouble with Clang build.

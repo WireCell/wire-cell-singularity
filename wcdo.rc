@@ -101,47 +101,75 @@ wcdo-ups-declare-help () {
     cat <<EOF 1>&2
 Prepare an empty UPS product area based on an existing one.
 
-usage: wcdo-ups-declare package version quals fromversion [fromquals]
+usage: wcdo-ups-declare package newversion
 
 An example:
 
-  wcdo-ups-declare wirecell DEVEL c2:prof v0_9_1
+  wcdo-ups-declare wirecell DEVEL
 
-To find suitable arguments:
+Note, an existing version of this package must already be "setup".
+
+To find a suitable version
 
   ups list -aK+ wirecell
+  setup <package> <version> -q <quals>
+
 
 EOF
 }
 wcdo-ups-declare () {
     local pkg="${1}"
     local ver="${2}"
-    local quals="${3}"
-    local relver="${4}"
-    local relquals="${5:-$quals}"
-    if [ -z "$relver" ] ; then
+    if [ -z "$ver" ] ; then
         wcdo-ups-declare-help
-        return -1
+        return
+    fi
+
+
+    local PKG=$(echo $pkg | awk '{print toupper($0)}')
+    envstr=$(env | grep "^SETUP_${PKG}=")
+
+    if [ -z "$envstr" ] ; then
+        echo "Must first 'setup' and existing version of ${pkg}" 1>&2
+        return
+    fi
+
+    path-prepend $wcdo_ups_products PRODUCTS
+
+    local relver=$(echo "$envstr" | awk '{print $2}')
+    local relquals=$(echo "$envstr" | awk '{print $8}')
+    local reldir=$(env | grep "^${PKG}_DIR" | tr '=' ' ' | awk '{print $2}')
+
+    local tabfile="$reldir/ups/${pkg}.table"
+
+    if [ ! -f "$tabfile" ] ; then
+        echo "Can not find table file: $tabfile"
+        return
     fi
 
     local upsdir="${wcdo_ups_products}/${pkg}/${ver}/ups"
 
-    if [ -d "$upsdir" ] ; then  # fixme: premature test?
-        echo "wcdo-ups-declare: already declared: $upsdir"
-        return
+    if [ ! -d "$upsdir" ] ; then
+        mkdir -p "$upsdir"
     fi
-    mkdir -p $upsdir
+    cp "$tabfile" "$upsdir"
 
-    local flavor="$(ups flavor)"
-    local declare_cmd=$(ups copy $pkg $relver -q $relquals -G "$pkg $ver -f $flavor -q $quals  -r ${pkg}/${ver} -z $wcdo_ups_products -U ups -m $pkg.table")
-    $declare_cmd
-    echo "$(dirname $upsdir)"
+    set -x
+    ups declare wirecell ${ver} \
+        -f $(ups flavor) \
+        -q ${relquals} \
+        -r "${pkg}/${ver}" \
+        -z "$wcdo_ups_products" \
+        -U ups  \
+        -m "${pkg}.table"
+    set +x
+    dirname $upsdir
 }
 
 
 # configure WCT source for building against UPS externals.
 wcdo-ups-wct-configure-source-help () {
-    cat <<EOF > 1>&2
+    cat 1>&2 <<EOF
 Configure WCT source using UPS environment.
 
   wcdo-ups-wct-configure
@@ -174,9 +202,9 @@ wcdo-ups-wct-configure-source () {
         return
     fi
     
-    goto $wcdo_wcdev
+    goto $wcdo_wct_dev
     if [ ! -f wcb ] ; then
-        echo "wcdo-ups-wct-configure-source: no WCT source: $(wcdo_wcdev)"
+        echo "wcdo-ups-wct-configure-source: no WCT source: $(wcdo_wct_dev)"
         return
     fi
 
@@ -209,7 +237,7 @@ wcdo-ups-wct-configure-source () {
 
 # Modify all product_deps files to set a different version for a package.
 wcdo-mrb-fsck-ups-help () {
-    cat <<EOF 1>&2
+    cat 1>&2 <<EOF 
 Fix the version for a package in all ups/products_deps file in all MRB
 source packages.
 
@@ -241,7 +269,7 @@ wcdo-mrb-fsck-ups () {
 }    
 
 wcdo-ups-pullproducts-help () {
-    cat <<EOF 1>&2
+    cat 1>&2 <<EOF
 Download and install UPS products.
 
 usage: wcdo-ups-pullproducts [pullProducts args] 
@@ -282,7 +310,7 @@ wcdo-ups-pullproducts () {
 
 # Initialize an MRB-controlled development area and environment to use it.
 wcdo-mrb-init-help () {
-    cat <<EOF 1>&2
+    cat 1>&2 <<EOF
 Initialize MRB-controlled development area.
 
 usage: wcdo-mrb-init [name [version [quals]]]
@@ -299,9 +327,9 @@ EOF
 }
 wcdo-mrb-init () {
 
-    local proj="${1:-wcdo_mrb_project_name}" ; shift
-    local pver="${1:-wcdo_mrb_project_version}" ; shift
-    local quals="${1:-wcdo_mrb_project_quals}" ; shift
+    local proj="${1:-$wcdo_mrb_project_name}" ; shift
+    local pver="${1:-$wcdo_mrb_project_version}" ; shift
+    local quals="${1:-$wcdo_mrb_project_quals}" ; shift
     if [ -z "$proj" ] ; then
         echo "Must define wcdo_mrb_* variables in your wcdo project file"
         wcdo-mrb-init-help
@@ -333,7 +361,7 @@ wcdo-mrb-init () {
 }
 
 wcdo-mrb-goto-help () {
-    cat <<EOF 1>&2
+    cat 1>&2 <<EOF
 Change to MRB-controlled development area, initializing if needed.
 
 usage: wcdo-mrb-goto
@@ -349,7 +377,7 @@ wcdo-mrb-goto () {
 
 # Add a source package to an MRB area
 wcdo-mrb-add-source-help () {
-    cat <<EOF 1>&2
+    cat 1>&2 <<EOF
 Add source packages to the MRB-controlled development area
 
 usage: wcdo-mrb-add-source <package> <feature> <commitish>
