@@ -40,7 +40,7 @@ path-append () {
 
 
 wcdo-wirecell-path-help () {
-    cat <<EOF 1>&2
+    cat 1>&2 <<EOF 
 Set or display the WIRECELL_PATH
 
 usage: wcdo-wirecell-path [ default <path> <path> ... ]
@@ -84,6 +84,35 @@ wcdo-wirecell-path () {
 ## UPS helpers
 ## 
 
+
+wcdo-ups-init-help () {
+    cat 1>&2 <<EOF
+Try to initialize local UPS products area.
+
+usage wcdo-ups-init
+
+This will hunt for the UPS "setup" script in a few places.  It will
+also try to prime the $wcdo_ups_products area if needed.
+
+EOF
+}
+wcdo-ups-init () {
+    if [ -n "$SETUP_UPS" ] ; then
+        return
+    fi
+
+    for maybe in "$wcdo_ups_products" /cvmfs/larsoft.opensciencegrid.org/products
+    do
+        if [ -f "$maybe/setup" ] ; then
+            echo "Using UPS from: $maybe" 1>&2
+            source "$maybe/setup"
+            return
+        fi
+    done
+    echo "unable to initialize UPS products area" 1>&2
+}
+
+
 # Return a version for newest package
 wcdo-ups-version () {
     local pkg="${1:-larsoft}"
@@ -98,7 +127,7 @@ wcdo-ups-quals () {
     
 # declare a UPS product
 wcdo-ups-declare-help () {
-    cat <<EOF 1>&2
+    cat 1>&2 <<EOF
 Prepare an empty UPS product area based on an existing one.
 
 usage: wcdo-ups-declare package newversion
@@ -249,6 +278,11 @@ wcdo-mrb-fsck-ups () {
     local pkg="$1"; shift;
     local ver="$1"; shift
 
+    if [ -z "$SETUP_UPS" ] ; then
+        echo "must setup ups first"
+        return
+    fi
+
     wcdo-mrb-init
     local base="$MRB_TOP"
 
@@ -327,6 +361,11 @@ EOF
 }
 wcdo-mrb-init () {
 
+    if [ -z "$SETUP_UPS" ] ; then
+        echo "must setup ups first"
+        return
+    fi
+
     local proj="${1:-$wcdo_mrb_project_name}" ; shift
     local pver="${1:-$wcdo_mrb_project_version}" ; shift
     local quals="${1:-$wcdo_mrb_project_quals}" ; shift
@@ -393,6 +432,11 @@ wcdo-mrb-add-source () {
     local pkg="$1"; shift
     local feature="$1"; shift
     local committish="$1"; shift
+
+    if [ -z "$SETUP_UPS" ] ; then
+        echo "must setup ups first"
+        return
+    fi
 
     if [ -z "$pkg" ] ; then
         wcdo-mrb-add-source-help

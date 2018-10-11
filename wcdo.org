@@ -1,4 +1,4 @@
-#+title wcdo
+#+title: wcdo
 
 Do stuff with Wire-Cell in a Singularity container.
 
@@ -12,8 +12,8 @@ Pick a directory with several GB of space to work in and run a few
 ~wcdo.sh~ commands run in your native OS (the container host OS):
 
 #+BEGIN_EXAMPLE
-  $ mkdir wcdowork
-  $ cd wcdowork
+  $ mkdir -p ~/wcdo/example
+  $ cd ~/wcdo/example
   $ wcdo.sh init
   $ wcdo.sh get-image sl7 
   $ wcdo.sh make-project myproj sl7
@@ -24,13 +24,13 @@ You are now inside the container environment.  Many bash functions are
 available and may be discovered with tab-completion:
 
 #+BEGIN_EXAMPLE
-  [sl7]user@host:wcdowork> wcdo-TAB
+  [sl7]bviren@hierocles:example> wcdo-TAB
 #+END_EXAMPLE
 
 Most have a "~-help~" function that will print some help:
 
 #+BEGIN_EXAMPLE
-  [sl7]user@host:wcdowork> wcdo-wirecell-path-help
+  [sl7]bviren@hierocles:example> wcdo-wirecell-path-help
 
   Set or display the WIRECELL_PATH
 
@@ -129,9 +129,11 @@ You may wish to modify or augment the environment provided already by
 ~wcdo.rc~ and ~wcdo-<name>.rc~.  Making a project creates a skeleton
 of ~wcdo-local-<name>.rc~ which names several variable which help to
 reduce how many things you have to remember.  You may also want to
-call a few commands each time you enter the project's container.  For
-example, here is a modified version of a generated
-~wcdo-local-<name>.rc~ stub:
+call a few commands each time you enter the project's container.  
+
+For example, here is a modified version of a generated
+~wcdo-local-<name>.rc~ stub which I use for testing Clang-based
+builds:
 
 #+BEGIN_EXAMPLE
   $ cat wcdo-local-cldev.rc
@@ -156,18 +158,13 @@ example, here is a modified version of a generated
   path-prepend $wcdo_ups_products PRODUCTS
   wcdo-mrb-init
   wcdo-mrb-add-source larwirecell bviren_v070200 v07_02_00
-
 #+END_EXAMPLE
 
-What it does:
+I have another almost identical "project" which is for testing
+GCC-based builds.  The only difference besides the "project" name is
+the ~wcdo_mrb_project_quals~ setting.
 
-- sets info required for ~mrb~ to do its thing
-- sources a UPS ~setup~ script from CVMFS
-- calls two ~wcdo-*~ commands to assure an MRB development area is in some expected state.
-
-As the comments state, the ~wcdo-*~ functions try to be /idempotent/
-so they can be safely called more than once.
-
+More examples of configuration are given below.
 
 * In-container environment
 
@@ -208,35 +205,91 @@ as typically set inside the native-side ~.sh~ files.
 
 * Example use
 
-Using the ~wcdo-local-cldev.rc~ described in [[Customizing container
-side]] as the starting point one can quickly do some tasks:
+** Building WCT source
 
-Prepare a new "wirecell" UPS "product" area to receive a WCT
-installation.  To do this requires first the "~setup~" an existing
-~wirecell~ product.
+Using the GCC setup in ~wcdo-local-gccdev.rc~ and with comments stripped:
 
 #+BEGIN_EXAMPLE
-  [mrb][sl7]bviren@hierocles:wct> setup wirecell v0_9_1 -q c2:prof
-
-  [mrb][sl7]bviren@hierocles:srcs> wcdo-ups-declare wirecell DEVEL
-  /wcdo/lib/ups/wirecell/DEVEL
-
-  [mrb][sl7]bviren@hierocles:srcs> setup wirecell DEVEL -q c2:prof
-
+wcdo_mrb_project_name="larsoft"
+wcdo_mrb_project_version="v07_07_00"
+wcdo_mrb_project_quals="e17:prof"
+wcdo-ups-init
+path-append $wcdo_ups_products PRODUCTS
 #+END_EXAMPLE
 
-The "~ups declare~" step loves to fail in ways that are challenging to
-understand.  If it fails for you, try:
-
- - check that ~PRODUCTS~ includes ~/wcdo/lib/ups~
- - nuke ~/wcdo/lib/ups/wirecell/DEVEL*~
- - sacrifice a goat
-
-Build and install WCT into that UPS "product" area
+Enter the container:
 
 #+BEGIN_EXAMPLE
-  [mrb][sl7]bviren@hierocles:wct> wcdo-ups-wct-configure-source
-  [mrb][sl7]bviren@hierocles:wct> ./wcb -p --notests install
+  $ ./wcdo-gccdev.sh 
 #+END_EXAMPLE
 
-Note: I'm having trouble with Clang build.
+To start clean I remove any previous UPS products named "wirecell"
+that I might have made prior:
+
+#+BEGIN_EXAMPLE
+  [sl7]bviren@hierocles:example> rm -rf /wcdo/lib/ups/wirecell
+  [sl7]bviren@hierocles:example> setup wirecell v0_9_1a -q e17:prof
+  [sl7]bviren@hierocles:example> wcdo-ups-declare wirecell DEVEL
+  [sl7]bviren@hierocles:example> setup wirecell DEVEL -q e17:prof
+#+END_EXAMPLE
+
+At this point, take note that UPS does *not* setup up the environment
+properly.  In particular, ~LD_LIBRARY_PATH~ has no entry.  But, one
+can go on to configure, build and install:
+
+#+BEGIN_EXAMPLE
+  [sl7]bviren@hierocles:example> wcdo-ups-wct-configure-source
+  [sl7]bviren@hierocles:wct> ./wcb -p --notests install
+#+END_EXAMPLE
+
+At this point the ~lib~ directory exists and one must re-~setup~ the
+~wirecell~ UPS "product" in order to unbreak the UPS environment.  You
+also *must* reset the ~WIRECELL_PATH~ because the UPS "product" breaks
+it.  UPS actively hates its users.
+
+#+BEGIN_EXAMPLE
+  [sl7]bviren@hierocles:wct> echo $LD_LIBRARY_PATH |tr ':' '\n'|grep wirecell
+  [sl7]bviren@hierocles:wct> setup wirecell DEVEL -q e17:prof
+  [sl7]bviren@hierocles:wct> echo $LD_LIBRARY_PATH |tr ':' '\n'|grep wirecell
+  /wcdo/lib/ups/wirecell/DEVEL/Linux64bit+4.4-2.17-sl7-5-e17-prof/lib64
+
+  [sl7]bviren@hierocles:wct> wcdo-wirecell-path default
+
+  [sl7]bviren@hierocles:wct> ./wcb -p --alltests
+  ...
+    tests that fail 0/109 
+#+END_EXAMPLE
+
+
+** Same as above but with Clang
+
+My ~wcdo-local-cldev.rc~
+
+#+BEGIN_EXAMPLE
+  wcdo_mrb_project_name="larsoft"
+  wcdo_mrb_project_version="v07_07_00"
+  wcdo_mrb_project_quals="c2:prof"
+  wcdo-ups-init
+  path-append $wcdo_ups_products PRODUCTS
+#+END_EXAMPLE
+
+And, similar dance as before
+
+#+BEGIN_EXAMPLE
+  [sl7]bviren@hierocles:example> setup wirecell v0_9_1a -q c2:prof
+  [sl7]bviren@hierocles:example> wcdo-ups-declare wirecell DEVEL
+  [sl7]bviren@hierocles:example> setup wirecell DEVEL -q c2:prof
+  [sl7]bviren@hierocles:example> wcdo-ups-wct-configure-source
+  [sl7]bviren@hierocles:wct> ./wcb -p --notests install
+  [sl7]bviren@hierocles:wct> setup wirecell DEVEL -q c2:prof
+  [sl7]bviren@hierocles:wct> wcdo-wirecell-path default
+  [sl7]bviren@hierocles:wct> ./wcb -p --alltests
+    tests that fail 1/109 
+      /wcdo/src/wct/build/apps/test_dlopen 
+#+END_EXAMPLE
+
+That failure seems to be a real bug or clang "feature"....
+
+
+
+

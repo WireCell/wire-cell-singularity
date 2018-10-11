@@ -59,7 +59,44 @@ ups_products="lib/ups"
 # Initialize current directory as a workspace project
 wcdo-init () {
     if [ ! -d "$mrb_dev" ] ; then mkdir -p "$mrb_dev" ; fi
-    if [ ! -d "$ups_products" ] ; then mkdir -p "$ups_products" ; fi
+    if [ ! -d "$ups_products/.upsfiles" ] ; then
+        echo "Priming UPS area" 
+        mkdir -p "$ups_products/.upsfiles"
+        cat > "$ups_products/.upsfiles/dbconfig" <<EOF
+FILE = DBCONFIG
+AUTHORIZED_NODES = *
+VERSION_SUBDIR = 1
+PROD_DIR_PREFIX = \${UPS_THIS_DB}
+UPD_USERCODE_DIR = \${UPS_THIS_DB}/.updfiles
+EOF
+    fi
+    if [ ! -d "$ups_products/.updfiles" ] ; then
+        mkdir -p "$ups_products/.updfiles"
+        cat > "$ups_products/.updfiles/updconfig" <<EOF
+File = updconfig
+
+GROUP:
+  product       = ANY
+  flavor        = ANY
+  qualifiers    = ANY
+  options       = ANY
+  dist_database = ANY
+  dist_node     = ANY
+
+COMMON:
+     UPS_THIS_DB = "\${UPD_USERCODE_DB}"
+     UPS_PROD_DIR = "\${UPS_PROD_NAME}/\${UPS_PROD_VERSION}/\${DASH_PROD_FLAVOR}\${DASH_PROD_QUALIFIERS}"
+  UNWIND_PROD_DIR = "\${PROD_DIR_PREFIX}/\${UPS_PROD_DIR}"
+      UPS_UPS_DIR = "ups"
+   UNWIND_UPS_DIR = "\${UNWIND_PROD_DIR}/\${UPS_UPS_DIR}"
+ UPS_TABLE_FILE  = "\${UPS_PROD_NAME}.table"
+UNWIND_TABLE_DIR = "\${UNWIND_UPS_DIR}"
+END:
+EOF
+        cat > "$ups_products/.updfiles/updusr.pm" <<EOF
+require 'default_updusr.pm';
+EOF
+    fi
 
     wcdo-git-it "$wct_dev" "git clone --recursive git@github.com:WireCell/wire-cell-build.git ."
     wcdo-git-it "$wct_data" "git clone --depth=1 https://github.com/WireCell/wire-cell-data.git ."
