@@ -177,17 +177,37 @@ working directory per project.  The amount of extra storage required
 to maintain this separation is minimal assuming ~/cvmfs~ or a local
 UPS "products" area is shared between the projects.
 
-** Customizing native side
+** Customizing project creation
 
-You may wish to modify how you start Singularity by editing the
-~wcdo-local.sh~ to control all projects or just ~wcdo-local-<name>.sh~
-to control one project.  For example, if the command ~singularity~ is
-installed in some unusual location you may want to add this to ~PATH~
+When making many projects it can help to customize some defaults, for
+example the use of an image cache.  This can be done in
+~$HOME/.wcdo/main-local.sh~.  For example:
 
 #+BEGIN_EXAMPLE
-  $ cat wcdo-local.sh 
-  PATH=$HOME/opt/singularity/bin:$PATH
+  $ cat ~/.wcdo/main-local.sh
+  # Stuff here can override wcdo.sh operation.
+  wcdo_image_cache="$HOME/public_html/simg"
 #+END_EXAMPLE
+
+** Customizing native side
+
+When can customize how a project's generated start script
+~wcdo-<name>.sh~ behaves in three places:
+
+- ~wcdo-local-<name>.sh~ :: this should hold any customization for the
+     particular project.  It will only be included from
+     ~wcdo-<name>.sh~.
+
+- ~wcdo-local.sh~ :: in a ~wcdo~ project workspace this file will be
+     included in every ~wcdo-<name>.sh~.  It is ideal for any
+     commonalities between otherwise variations which may otherwise be
+     expressed in ~wcdo-local-<name>.sh~.
+
+- ~$HOME/.wcdo/project-local.sh~ :: if existing, this is included in
+     every ~wcdo-<name>.sh~ and is the place to provide global
+     settings.  For example, if directory holding the ~singularity~
+     command is not normally in your ~$PATH~ that variable could be
+     updated here.
 
 ** Customizing container side
 
@@ -334,11 +354,17 @@ it.  UPS actively hates its users.
 ** Adding idempotent instructions to ~wcdo-local-<name>.rc~
 
 In some cases you want to enter a container and assure some complex
-state.  However, you don't want to repeat long running commands each
-time if they aren't really needed.  Here is an example of a
-~wcdo-local-<name>.rc~ file which will build Wire-Cell Toolkit against
-a version of externals from UPS in an idempotent manner.  It handles
-all the annoying UPS setup and resetup.
+state.  However, you don't want laboriously retype command.  Nor do
+you want to simply replay them in a simple script as rerunning them
+may not be needed and it wastes time.
+
+Here is an example of a ~wcdo-local-<name>.rc~ file which has commands
+written in an "idempotent" manner.  When placed in the workspace, its
+commands will be replayed every time the project container is entered
+and on subsequent entries the commands will complete quickly.  In this
+example, the commands assure that the Wire-Cell Toolkit is built
+against a version of the externals from UPS.  It also handles many of
+the anoyingly stateful UPS setup and resetup.
 
 #+BEGIN_EXAMPLE
 wcdo_mrb_project_name="larsoft"
@@ -378,3 +404,83 @@ fi
 echo "wire-cell --help"
 wire-cell --help
 #+END_EXAMPLE
+
+** Command reuse
+
+Going further, the above commands can be factored into a single Bash
+function, added to ~$HOME/wcdo/project-local.rc~ so that it may be
+easily reused in many different ~wcdo-local-<name>.rc~ files.  Here's
+how that might look:
+
+Now the ~wcdo-local-<name>.rc~ file in its entirety is just a couple lines:
+#+BEGIN_EXAMPLE
+  #!/bin/bash
+  wcdo-ups-init
+  bv-ups-wct-build v0_9_1a v091a_devel c2:prof
+#+END_EXAMPLE
+
+The ~$HOME/.wcdo/project-local.rc~ then receives idempotent script
+from above cleaned up a bit.
+
+#+BEGIN_EXAMPLE
+  bv-ups-wct-build () {
+      if [ -z "$SETUP_UPS" ] ; then
+          echo "bv-ups-wct-build: need ups set up"
+          return
+      fi
+
+      local oldver="$1" ; shift
+      local newver="$1" ; shift
+      local quals="$1"; shift
+      local qualsm="$(echo $quals | tr : -)"
+
+      local instdir=/wcdo/lib/ups/wirecell/$newver
+      local bindir=$instdir/$(ups flavor)-${qualsm}/bin
+
+      path-append $wcdo_ups_products PRODUCTS
+      if [ ! -d $instdir ] ; then
+          setup wirecell $oldver -q $quals
+          wcdo-ups-declare wirecell $newver
+      fi
+      setup wirecell $newver -q $quals
+      cd /wcdo/src/wct/
+      if [ ! -d /wcdo/src/wct/build ] ; then
+          wcdo-ups-wct-configure-source
+      fi
+      if [ ! -f /wcdo/src/wct/build/apps/wire-cell ] ; then
+          ./wcb -p --notests
+      fi
+      if [ ! -f $bindir/wire-cell ] ; then
+          ./wcb -p --notests install
+      fi
+      setup wirecell $newver -q $quals
+      wcdo-wirecell-path default
+      if [ ! -f build/apps/test_dlopen ] ; then
+          ./wcb -p --alltests
+      fi
+      echo "wire-cell --help"
+      wire-cell --help
+  }
+#+END_EXAMPLE
+
+* Sharing with others
+
+The ~wcdo~ system greatly helps to capture the state of complex
+software development in a small set of text files.  In particular,
+when a problem (or a solution!) is discovered, it may be reproduced,
+bundled up and communicated to others.
+
+Some steps to capture your work and share it may go like:
+
+1) Reproduce the problem starting again in a clean work space.
+
+2) Reproduce the problem *entirely* by adding commands to your native
+   or container side "local" files ~wcdo-local-<name>.{rc,sh}~ and
+   without relying on any customization in files under ~$HOME/.wcdo/~.
+
+3) Bundle the state of your ~wcdo~ files by running ~./wcdo-<name>.sh
+   bundle~.
+
+4) Provide the small wcdo-bundle-<name>.* files to others.
+
+

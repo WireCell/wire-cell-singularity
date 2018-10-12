@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# These may be overridden in $HOME/.wcdo/main-local.sh
+wcdo_image_cache="."
+wcdo_image_url="https://www.phy.bnl.gov/~bviren/simg"
+
 
 wcdo-get-image () {
     local siname="$1"; shift
@@ -24,8 +28,8 @@ wcdo-get-image () {
         return
     fi
 
-    local cache="${1:-.}" ; shift
-    local baseurl="${1:-https://www.phy.bnl.gov/~bviren/simg}" ; shift
+    local cache="${1:-$wcdo_image_cache}" ; shift
+    local baseurl="${1:-$wcdo_image_url}" ; shift
 
     local bsifile="$(basename $sifile)"
     local sitmp="$cache/$bsifile"
@@ -224,7 +228,7 @@ wcdo_rcfile=${here}/${rcfile}
 
 # Given shared hook, eg to add singularity location to PATH
 # Or, override some wcdo_* variables
-for script in \${HOME}/.wcdo/local.sh ${here}/wcdo-local.sh ${here}/wcdo-local-${name}.sh
+for script in \${HOME}/.wcdo/project-local.sh ${here}/wcdo-local.sh ${here}/wcdo-local-${name}.sh
 do
     if [ -f \$script ] ; then
         source \$script
@@ -237,8 +241,25 @@ do
     bindargs="\$bindargs --bind \$one"
 done
 
-
 cmd="singularity exec \$bindargs \$wcdo_image env -i /bin/bash --rcfile \$wcdo_rcfile"
+
+if [ "\$1" = "bundle" ] ; then
+
+    keep=""
+    for one in ${here}/wcdo.rc ${here}/wcdo-${name}.rc ${here}/wcdo-${name}.sh ${here}/wcdo-local-${name}.rc ${here}/wcdo-local-${name}.sh \$HOME/.wcdo/main-local.sh \$HOME/.wcdo/project-local.rc \$HOME/.wcdo/project-local.sh
+    do
+        if [ ! -f \$one ] ; then
+            continue
+        fi
+        keep="\$keep \$(readlink -f \$one)"
+    done
+    bname="wcdo-bundle-${name}"
+    tar -czf \${bname}.tgz \$keep
+    sha1sum \$wcdo_image \${bname}.tgz > ${here}/\${bname}.txt
+    echo \$cmd >> ${here}/\${bname}.txt
+    ls -l \${bname}.*
+    exit
+fi
 
 echo \$cmd
 \$cmd
@@ -316,13 +337,13 @@ export XAUTHORITY="$XAUTHORITY"
 
 # Finally include the set of wcdo-* functions.
 source /wcdo/wcdo.rc
-# Given shared hook, eg to add singularity location to PATH
-if [ -f /wcdo/wcdo-local.rc ] ; then
-    source /wcdo/wcdo-local.rc
-fi
-if [ -f /wcdo/wcdo-local-${name}.rc ] ; then
-    source /wcdo/wcdo-local-${name}.rc
-fi
+# Hook in more global rc files:
+for maybe in \$HOME/.wcdo/project-local.rc /wcdo/wcdo-local.rc /wcdo/wcdo-local-${name}.rc
+do
+    if [ -f \$maybe ] ; then
+        source \$maybe
+    fi
+done
 
 EOF
     echo "Generated $rcfile, don't edit"
@@ -362,6 +383,10 @@ https://github.com/WireCell/wire-cell-singularity/blob/master/wcdo.org
 
 EOF
 }
+
+if [ -f $HOME/.wcdo/main-local.sh ] ; then
+    source $HOME/.wcdo/main-local.sh
+fi
 
 
 cmd="${1:-help}"; shift
