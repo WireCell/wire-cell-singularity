@@ -4,9 +4,16 @@ Do stuff with Wire-Cell in a Singularity container.
 
 * Getting started
 
+** Installation
+
 Download/copy the following script somewhere in your ~$PATH~ and make sure it is executable.
 
  - [[https://raw.githubusercontent.com/WireCell/wire-cell-singularity/master/wcdo.sh][wcdo.sh]]
+
+To assist in getting updates you may wish to clone this repository and
+symlink ~wcdo.sh~ into a directory in your ~$PATH~.
+
+** Quick start usage
 
 Pick a directory with several GB of space to work in and run a few
 ~wcdo.sh~ commands run in your native OS (the container host OS):
@@ -15,19 +22,21 @@ Pick a directory with several GB of space to work in and run a few
   $ mkdir -p ~/wcdo/example
   $ cd ~/wcdo/example
   $ wcdo.sh init
+  $ wcdo.sh wct
   $ wcdo.sh get-image sl7 
   $ wcdo.sh make-project myproj sl7
   $ ./wcdo-myproj.sh
 #+END_EXAMPLE
 
-You are now inside the container environment.  Many bash functions are
-available and may be discovered with tab-completion:
+With this last command, you are now inside the container environment.
+Many bash functions are available and may be discovered with
+tab-completion:
 
 #+BEGIN_EXAMPLE
   [sl7]bviren@hierocles:example> wcdo-TAB
 #+END_EXAMPLE
 
-Most have a "~-help~" function that will print some help:
+Most have a "~wcdo-*-help~" function that will print some help:
 
 #+BEGIN_EXAMPLE
   [sl7]bviren@hierocles:example> wcdo-wirecell-path-help
@@ -52,22 +61,67 @@ Most have a "~-help~" function that will print some help:
 
 Each of the ~wcdo.sh~ native OS commands above are now described.
 Most importantly, users should read the last section describing the
-~make-project~.
+~make-project~ command and customizing the files it produces.
 
 ** ~init~
 
-This prepares the *current directory* to follow some conventions.
+#+BEGIN_EXAMPLE
+  $ wcdo.sh init
+#+END_EXAMPLE
 
- - downloads WCT source, data and cfg
- - makes some sub directory stub
- - downloads a recent copy of [[https://github.com/WireCell/wire-cell-singularity/blob/master/wcdo.rc][wcdo.rc]] to current directory
+This prepares your *current working directory* to follow some conventions.
+
+ - makes some sub-directory stubs
+ - initializes an empty UPS products directory
+ - downloads a recent copy of [[https://github.com/WireCell/wire-cell-singularity/blob/master/wcdo.rc][wcdo.rc]] for later use
+
+** ~wct~
+
+This command downloads Wire-Cell Toolkit source and data/cfg packages.
+
+#+BEGIN_EXAMPLE
+  $ wcdo.sh wct [access branch]
+#+END_EXAMPLE
+
+Running this is the same as individually running:
+
+#+BEGIN_EXAMPLE
+  $ wcdo.sh wct-data [access branch]
+  $ wcdo.sh wct-cfg [access branch]
+  $ wcdo.sh wct-source [access branch]
+#+END_EXAMPLE
+
+The optional ~[access branch]~ arguments control which GitHub URL is
+used and which branch of the packages is checked out.
+
+The ~access~ option is one of:
+
+ - ~anonymous~ :: (default) anonymous (non-authenticated) HTTP Git
+                  access to GitHub is used.
+
+ - ~developer~ :: use authenticated access requiring user to supply
+                  credentials.
+
+The ~branch~ specifies which point in the code history to retrieve:
+
+ ~ ~master~ :: (default) tip of the master branches are retrieved
+
+ - ~X.Y.x~ :: (the ~.x~ is literal) a release branch is retrieved.
+
+The results of these commands are just normal local ~git~
+repositories.  You are free to evolve them as you wish either on in
+your native OS or in the container.
+
 
 ** ~get-image~
 
 This downloads a Singularity image based on its name.  By default it
 simply downloads the image to the current working directory.  You may
-instead have a local cache of images and set what URL they are
-downloaded from.  Get a little help by running with no arguments:
+instead supply a local cache directory in order to avoid redownloading
+the same image.  A cache directory also results in the image being
+symlinked so you can save disk space.  Finally, you can provide some
+other URL from which to find images.  Get a little help by running
+with no arguments:
 
 #+BEGIN_EXAMPLE
   $ ./wcdo.sh get-image 
@@ -79,10 +133,11 @@ downloaded from.  Get a little help by running with no arguments:
 
 ** ~make-project~
 
-This command generates files in the workspace.  Some of these files
-*should* be modified by the user and some should *not*.  Scripts
-(ending in ~.sh~) contain code that executes inside your native OS.
-RC files (~.rc~) contain code that executes inside the container.
+This command generates files in the current working directory.  Some
+of these files *should* be modified by the user and some should *not*.
+Scripts (ending in ~.sh~) contain code that executes inside your
+native OS.  RC files (~.rc~) contain code that executes inside the
+container.
 
 These generated files should *not* be modified manually:
 
@@ -106,33 +161,16 @@ concept of a "project".  The idea is to bundle all the information for
 a particular task so that you may easily return to it days or weeks
 later after all the annoying details have long left your mind.
 
-A ~wcdo~ project is defined with these parts
+A ~wcdo~ project is defined by the working directory and the set of
+~wcdo-*.{rc,sh}~ scripts as described above.
 
- - working directory :: a user-owned directory selected to hold all
-      non-OS container files and which gets mounted as ~/wcdo~ in the
-      container.
-
- - ~wcdo-<name>.sh~ :: a script generated by ~wcdo.sh~ which contains
-      instructions for initializing the working directory and entering
-      the container.  It should not be modified by the user but may be
-      updated by rerunning an updated ~wcdo.sh~.
-
- - ~wcdo-<name>.rc~ :: a Bash initialization file generated by
-      ~wcdo.sh~ which contains environment to be applied in the
-      container.  It should not be modified by the user but may be
-      updated by rerunning an updated ~wcdo.sh~.
-
- - ~wcdo-local-<name>.{sh,rc}~ :: initially generated by ~wcdo.sh~ as
-      skeletons and included in the above files, the user may
-      customize the project by editing these files.  They will not be
-      regenerated by ~wcdo.sh~.
-
-In principle, one may produce multiple sets of the above files in the
-same working directory.  However, it is possible (even easy) to
-produce conflicting configuration which can not share the same ~/wcdo~
-working directory.  In particular, there is a single MRB-controlled
-development area under ~/wcdo/src/mrb~ which can not support differing
-sets of source packages.  
+In principle, one may produce multiple sets of the ~wcdo-*.{rc,sh}~
+files in the same working directory.  However, it is possible (even
+easy) to produce conflicting configurations which can not share the
+same ~/wcdo~ working directory.  For example, there is a single
+MRB-controlled development area mounted under ~/wcdo/src/mrb~ which
+can not support multiple sets of source packages that different ~wcdo~
+projects may want.
 
 To assure no conflicts, it is recommended to maintain only one ~wcdo~
 working directory per project.  The amount of extra storage required
@@ -231,7 +269,7 @@ Any global environment variables are named ~wcdo_*~ and are kept to a
 minimum and are meant to hold some static "wcdo project" information
 as typically set inside the native-side ~.sh~ files.
 
-* Example use
+* Extended example of use
 
 ** Building WCT source
 

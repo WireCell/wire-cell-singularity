@@ -35,18 +35,6 @@ wcdo-get-image () {
     ln -sf "$sitmp" .
 }
 
-wcdo-git-it () {
-    local dir="$1" ; shift
-    local gitcmd="$@"
-
-    if [ -d "$dir" ] ; then
-        return
-    fi
-    mkdir -p $dir
-    pushd $dir
-    $gitcmd 
-    popd
-}
 
 # These semantically identified directories need to be synced on both
 # native and container side.  They get baked into the generated rc file below.
@@ -58,6 +46,7 @@ ups_products="lib/ups"
 
 # Initialize current directory as a workspace project
 wcdo-init () {
+
     if [ ! -d "$mrb_dev" ] ; then mkdir -p "$mrb_dev" ; fi
     if [ ! -d "$ups_products/.upsfiles" ] ; then
         echo "Priming UPS area" 
@@ -98,9 +87,6 @@ require 'default_updusr.pm';
 EOF
     fi
 
-    wcdo-git-it "$wct_dev" "git clone --recursive git@github.com:WireCell/wire-cell-build.git ."
-    wcdo-git-it "$wct_data" "git clone --depth=1 https://github.com/WireCell/wire-cell-data.git ."
-    wcdo-git-it "$wct_cfg" "git clone https://github.com/WireCell/wire-cell-cfg.git ."
 
     if [ -f wcdo.rc ] ; then
         echo "A wcdo.rc already exists.  Move it aside to get a fresh copy".
@@ -111,6 +97,78 @@ EOF
 }
 
 
+wcdo-wct-one () {
+    local name="$1" ; shift     # required, "data", "cfg", etc.
+    local dir="$1" ; shift      # required
+    local acc="${1:-anonymous}" ;shift
+    local br="${1:-master}" ;shift
+    
+    if [ ! -d "$dir" ] ; then
+        mkdir -p "$dir"
+    fi
+
+    pushd "$dir"
+
+    if [ ! -d .git ] ; then
+        git init
+    fi
+
+    # start from known state
+    git remote remove origin 2>/dev/null || true
+
+    giturl="git@github.com:WireCell/wire-cell-${name}.git"
+    if [ "$acc" = "anonymous" ] ; then
+        giturl="https://github.com/WireCell/wire-cell-${name}.git"
+    fi
+    git remote add --tags origin "$giturl"
+    git fetch
+    git checkout $br
+
+    popd
+}
+
+wcdo-wct-data () {
+    local acc="${1:-anonymous}" ;shift
+    local br="${1:-master}" ;shift
+    wcdo-wct-one data "$wct_data" "$acc" "$br"
+}
+
+wcdo-wct-cfg () {
+    local acc="${1:-anonymous}" ;shift
+    local br="${1:-master}" ;shift
+    wcdo-wct-one cfg "$wct_cfg" "$acc" "$br"
+}
+
+wcdo-wct-source () {
+    local acc="${1:-anonymous}" ;shift
+    local br="${1:-master}" ;shift
+    wcdo-wct-one build "$wct_dev" "$acc" "$br"
+
+    pushd "$wct_dev"
+
+    if [ "$acc" = "anonymous" ] ; then
+        ./switch-git-urls anon
+    else
+        ./switch-git-urls dev
+    fi
+    git checkout -b $br $br
+    git submodule init
+    git submodule update
+    if [ "$br" != "master" ] ; then
+        git submodule foreach git checkout -b $br origin/$br
+    else
+        git submodule foreach git checkout master
+    fi
+    git submodule foreach git pull origin $br
+    popd
+}
+wcdo-wct () {
+    local acc="${1:-anonymous}" ;shift
+    local br="${1:-master}" ;shift
+    wcdo-wct-data "$acc" "$br"
+    wcdo-wct-cfg "$acc" "$br"
+    wcdo-wct-source "$acc" "$br"    
+}
 
 # Make a project in the current workspace current directory
 # This creates wcdo-*.sh and wcdo-*.rc files
