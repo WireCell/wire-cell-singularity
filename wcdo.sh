@@ -130,6 +130,10 @@ wcdo-wct-one () {
 wcdo-wct-data () {
     local acc="${1:-anonymous}" ;shift
     local br="${1:-master}" ;shift
+    if [ $br != "master" ] ; then
+        echo "WCT data doesn't have branches, forcing master instead of $br"
+        br="master"
+    fi
     wcdo-wct-one data "$wct_data" "$acc" "$br"
 }
 
@@ -191,39 +195,58 @@ wcdo-make-project () {
     local here=$(pwd)
 
     # Bind workspace and any extras
-    local bindargs="--bind ${here}:/wcdo"
+    local bindings="${here}:/wcdo"
     local wcdo_init=""
     if [ -d /cvmfs ] ; then
-        bindargs="$bindargs --bind /cvmfs"
+        bindings="$bindings /cvmfs"
         wcdo_init="source /cvmfs/larsoft.opensciencegrid.org/products/setup"
     fi
     for one in $morebindings
     do
-        bindargs="$bindargs --bind $one"
+        bindings="$bindings $one"
     done
     
     rcfile="wcdo-${name}.rc"
     shfile="wcdo-${name}.sh"
 
+    touch $shfile
+    chmod +w $shfile
     cat <<EOF > "$shfile"
 #!/bin/bash 
 
 # Run this to enter an image for project $name.
 # This file is generated.
 
+wcdo_image=${here}/${simage}
+wcdo_generated_bindings="$bindings"
+wcdo_bindings=""
+wcdo_rcfile=${here}/${rcfile}
+
 # Given shared hook, eg to add singularity location to PATH
-for one in local local-${name}
+# Or, override some wcdo_* variables
+for script in \${HOME}/.wcdo/local.sh ${here}/wcdo-local.sh ${here}/wcdo-local-${name}.sh
 do
-    script=${here}/wcdo-\${one}.sh
     if [ -f \$script ] ; then
         source \$script
     fi
 done
 
-singularity exec $bindargs "${here}/${simage}" env -i /bin/bash --rcfile "${here}/$rcfile"
+bindargs=""
+for one in \$wcdo_bindings \$wcdo_generated_bindings
+do
+    bindargs="\$bindargs --bind \$one"
+done
+
+
+cmd="singularity exec \$bindargs \$wcdo_image env -i /bin/bash --rcfile \$wcdo_rcfile"
+
+echo \$cmd
+\$cmd
+
 EOF
     chmod +x $shfile
-    echo "Generated $shfile"
+    echo "Generated $shfile, don't edit"
+    chmod 555 $shfile
 
 
     local lrcfile="wcdo-local-${name}.rc"
@@ -250,9 +273,12 @@ wcdo_mrb_project_quals=""
 # $wcdo_init
 
 EOF
-        echo "Generated $lrcfile"
+        echo "Generated $lrcfile, please edit"
+        chmod 644 $lrcfile
     fi
 
+    touch $rcfile
+    chmod +w $rcfile
     cat <<EOF > "$rcfile"
 #!/bin/bash
 
@@ -299,7 +325,8 @@ if [ -f /wcdo/wcdo-local-${name}.rc ] ; then
 fi
 
 EOF
-    echo "Generated $rcfile"
+    echo "Generated $rcfile, don't edit"
+    chmod 444 $rcfile
 }
 
 
@@ -313,11 +340,25 @@ All commands assume current working directory is a "wcdo workspace".
 
 The commands are:
 
-  init          initialize current directory as a wcdo workspace
+  init
 
-  get-image     add a Singularity image by name to current directory
+        initialize current directory as a wcdo workspace
 
-  make-project  make files to run and configure a project in the current directory
+  wct [access [branch]]
+
+        Get Wire-Cell Toolkit source, data and configuration
+
+  get-image <imagename> [cachedir [url]]
+
+        Add a Singularity image by name to current directory
+
+  make-project <projname> <imagename> [bindings]
+
+        Make files to run and configure a project in the current directory
+
+For details see:
+
+https://github.com/WireCell/wire-cell-singularity/blob/master/wcdo.org
 
 EOF
 }

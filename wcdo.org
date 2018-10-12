@@ -273,7 +273,11 @@ as typically set inside the native-side ~.sh~ files.
 
 ** Building WCT source
 
-Using the GCC setup in ~wcdo-local-gccdev.rc~ and with comments stripped:
+Here we modify the generated "stub" file ~wcdo-local-<name>.rc~.
+Replace "~<name>~" here and below with the project name you chose.
+Configure some variables that will be used to operate on the
+MRB-controlled source area and to set up UPS.  With the comments
+deleted we have something like:
 
 #+BEGIN_EXAMPLE
 wcdo_mrb_project_name="larsoft"
@@ -283,10 +287,10 @@ wcdo-ups-init
 path-append $wcdo_ups_products PRODUCTS
 #+END_EXAMPLE
 
-Enter the container:
+One can then run the container:
 
 #+BEGIN_EXAMPLE
-  $ ./wcdo-gccdev.sh 
+  $ ./wcdo-<name>.sh 
 #+END_EXAMPLE
 
 To start clean I remove any previous UPS products named "wirecell"
@@ -327,35 +331,50 @@ it.  UPS actively hates its users.
 #+END_EXAMPLE
 
 
-** Same as above but with Clang
+** Adding idempotent instructions to ~wcdo-local-<name>.rc~
 
-My ~wcdo-local-cldev.rc~
-
-#+BEGIN_EXAMPLE
-  wcdo_mrb_project_name="larsoft"
-  wcdo_mrb_project_version="v07_07_00"
-  wcdo_mrb_project_quals="c2:prof"
-  wcdo-ups-init
-  path-append $wcdo_ups_products PRODUCTS
-#+END_EXAMPLE
-
-And, similar dance as before
+In some cases you want to enter a container and assure some complex
+state.  However, you don't want to repeat long running commands each
+time if they aren't really needed.  Here is an example of a
+~wcdo-local-<name>.rc~ file which will build Wire-Cell Toolkit against
+a version of externals from UPS in an idempotent manner.  It handles
+all the annoying UPS setup and resetup.
 
 #+BEGIN_EXAMPLE
-  [sl7]bviren@hierocles:example> setup wirecell v0_9_1a -q c2:prof
-  [sl7]bviren@hierocles:example> wcdo-ups-declare wirecell DEVEL
-  [sl7]bviren@hierocles:example> setup wirecell DEVEL -q c2:prof
-  [sl7]bviren@hierocles:example> wcdo-ups-wct-configure-source
-  [sl7]bviren@hierocles:wct> ./wcb -p --notests install
-  [sl7]bviren@hierocles:wct> setup wirecell DEVEL -q c2:prof
-  [sl7]bviren@hierocles:wct> wcdo-wirecell-path default
-  [sl7]bviren@hierocles:wct> ./wcb -p --alltests
-    tests that fail 1/109 
-      /wcdo/src/wct/build/apps/test_dlopen 
+wcdo_mrb_project_name="larsoft"
+wcdo_mrb_project_version="v07_07_00"
+wcdo_mrb_project_quals="c2:prof"
+wcdo_mrb_project_qualsm=$(echo $wcdo_mrb_project_quals | tr : -)
+wcdo_mrb_project_quals_=$(echo $wcdo_mrb_project_quals | tr : _)
+
+wcdo-ups-init
+
+bv_wct_ups_version=v0_9_1a
+bv_wct_dev_version=v091a_devel
+bv_wct_ups_dir=/wcdo/lib/ups/wirecell/$bv_wct_dev_version
+bv_wct_ups_bin_dir=$bv_wct_ups_dir/$(ups flavor)-${wcdo_mrb_project_qualsm}/bin
+
+path-append $wcdo_ups_products PRODUCTS
+if [ ! -d $bv_wct_ups_dir ] ; then
+    setup wirecell $bv_wct_ups_version -q $wcdo_mrb_project_quals
+    wcdo-ups-declare wirecell $bv_wct_dev_version
+fi
+setup wirecell $bv_wct_dev_version -q $wcdo_mrb_project_quals
+cd /wcdo/src/wct/
+if [ ! -d /wcdo/src/wct/build ] ; then
+    wcdo-ups-wct-configure-source
+fi
+if [ ! -f /wcdo/src/wct/build/apps/wire-cell ] ; then
+    ./wcb -p --notests
+fi
+if [ ! -f $bv_wct_ups_bin_dir/wire-cell ] ; then
+    ./wcb -p --notests install
+fi
+setup wirecell $bv_wct_dev_version -q $wcdo_mrb_project_quals
+wcdo-wirecell-path default
+if [ ! -f build/apps/test_dlopen ] ; then
+    ./wcb -p --alltests
+fi
+echo "wire-cell --help"
+wire-cell --help
 #+END_EXAMPLE
-
-That failure seems to be a real bug or clang "feature"....
-
-
-
-
