@@ -1,0 +1,65 @@
+#+title: Notes on Singularity
+
+* Versions
+
+Although Singularity may be provided by your OS, it may be of an older
+than required for a given image.  You can test if your version of
+singularity supports a particular image with:
+
+#+begin_example
+  $ singularity inspect <image>.simg
+#+end_example
+
+If you get an "Unknown image format/type" error then your Singularity
+version is likely too old.
+
+* Installation
+
+Below copies an example install session.  For details, see
+instructions at [[https://www.sylabs.io/guides/3.0/user-guide/installation.html][sylabs]]. The info on the lbl.gov site may be out of
+date and in particular, one needs to install and uses ~go~.
+
+As root:
+#+begin_example
+  # apt-get update && sudo apt-get install -y \
+    build-essential libssl-dev uuid-dev \
+    libgpgme11-dev squashfs-tools libseccomp-dev pkg-config
+  # dpkg --purge singularity-container 
+  # cd /root
+  # wget https://dl.google.com/go/go1.11.5.linux-amd64.tar.gz
+  # tar -C /usr/local -xf go1.11.5.linux-amd64.tar.gz
+#+end_example
+
+As user
+
+#+begin_example
+  $ export GOPATH=$HOME/opt/go
+  $ export PATH=$GOPATH/opt/go/bin:/usr/local/go/bin:$PATH
+  $ mkdir -p $GOPATH
+  $ cd $GOPATH
+  $ go get -u github.com/golang/dep/cmd/dep
+  $ go get -d github.com/sylabs/singularity
+  $ cd src/github.com/sylabs/singularity/
+  $ git checkout -b v3.0.3  v3.0.3
+#+end_example
+
+Do the build and install, will ask for your sudo password:
+
+#+begin_example
+  $ ./mconfig && \
+    make -C ./builddir && \
+    sudo make -C ./builddir install
+#+end_example
+
+If all goes well:
+
+#+begin_example
+  $ which singularity
+  /usr/local/bin/singularity
+
+  $ singularity --version
+  singularity version 3.0.3
+
+  $ singularity inspect <image>.simg
+  (no error)
+#+end_example

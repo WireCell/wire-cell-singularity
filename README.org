@@ -5,17 +5,18 @@ containers to provide different environments related to running and
 developing the Wire-Cell Toolkit either as stand-alone software or as
 run from LArSoft.
 
-This variety can be a source of complexity and the approaches go from
-prescriptive to open-ended.
+The recommended approach is ~wcdo~.  It is "opinionated" in how it is
+structured but it also provides hooks for user customization.  For
+more info see [[wcdo.org]].
 
-- [[wcdo.org][wcdo]] :: this approach is the most coddling and prescriptive but has
-     some hooks for user customization.
+However, before starting be sure you satisfy a these prerequisites:
 
-- [[wcsing.org][wcsing]] :: and older approach with some rough edges.
+- [[./singularity.org][singularity]] :: of course this is required.  It is used here to provide a
+     bare minimum of Fermilab-supported Scientific Linux OS.
 
-Besides Singularity, you probably want to set up some other things:
+- [[cvmfs.org][cvmfs]] :: to keep the Singularity container file as small and general
+     as possible the bulk of software is delivered via the CVMFS
+     network file system in the form of UPS binary "products" provided
+     by Fermilab.  
 
-- [[cvmfs.org][cvmfs]] :: a file system which can be used to easily access UPS binary
-     "products" provided by Fermilab.  Using this saves you from
-     having to manually copy them.
 
