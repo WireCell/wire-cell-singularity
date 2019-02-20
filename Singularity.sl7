@@ -1,7 +1,7 @@
 BootStrap: yum
 OSVersion: 7
-#MirrorURL: http://ftp.scientificlinux.org/linux/scientific/%{OSVERSION}x/$basearch/os/
-MirrorURL: https://mirror.bnl.gov/scientific/%{OSVERSION}x/$basearch/os/
+MirrorURL: http://ftp.scientificlinux.org/linux/scientific/%{OSVERSION}x/$basearch/os/
+#MirrorURL: https://mirror.bnl.gov/scientific/%{OSVERSION}x/$basearch/os/
 
 Include: yum
 

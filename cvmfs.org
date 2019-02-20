@@ -11,6 +11,13 @@ than to link:
 - [[https://cernvm.cern.ch/portal/filesystem/downloads][CVMFS download instructions]]
 - [[https://cernvm.cern.ch/portal/filesystem/quickstart][CVMFS quickstart]] 
 
+Do note that CERN's ~cvmfs-release-latest_all.deb~ may choose the wrong
+distribution.  If so, remove, remake and edit
+~/etc/apt/sources.list.d/cernvm.list~ to use the correct distribution.
+New distributions may not yet have all packages (eg, at time of
+writing Ubuntu 18.04 "bionic" does not have ~cvmfs-config-default~).
+Going down to the next most recent release may work.
+
 However, for getting access to UPS product areas, here are the salient
 parts:
 
@@ -21,6 +28,8 @@ Edit ~/etc/cvmfs/default.local~ to look something like:
 CVMFS_REPOSITORIES=larsoft.opensciencegrid.org,uboone.opensciencegrid.org,dune.opensciencegrid.org
 # requires, replace with actual proxy, or just "DIRECT" if none
 CVMFS_HTTP_PROXY="http://my.local.proxy:1234;DIRECT"
+# BNL Physics department users may use
+# CVMFS_HTTP_PROXY="http://batch3.phy.bnl.gov:3128;DIRECT"
 
 # Optional but recomended:
 
