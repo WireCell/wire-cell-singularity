@@ -1,0 +1,72 @@
+#+title: Some Tips and Tricks
+
+* Speed up recompilation with ccache
+
+Some images (eg the [[https://www.phy.bnl.gov/~bviren/simg/sl7kc.simg][SL7 kitchen sink]] image) have [[https://ccache.dev/][ccache]] installed.
+This can speed up rebuild times by about a factor of 10.  Especially
+good if the cache is put on a fast SSD.
+
+To use it I place into my =~/.wcdo/project-local.rc= file:
+
+#+BEGIN_SRC sh
+bv-ccache-me () {
+    if [ ! -d /ccache ] ; then
+        echo "No ccache directory, not caching."
+        return
+    fi
+    if [ ! -d /ccache/bin ] ; then
+        mkdir /ccache/bin
+        for n in gcc g++ cc c++ cpp ; do
+            ln -s /bin/ccache /ccache/bin/$n
+        done
+    fi
+    if [ ! -d /ccache/cachedir ] ; then
+        mkdir /ccache/cachedir
+    fi
+    export CCACHE_DIR=/ccache/cachedir
+
+    export CC=/ccache/bin/cc
+    export CXX=/ccache/bin/c++
+    export CPP=/ccache/bin/cpp
+    path-prepend /ccache/bin 
+
+}
+bv-unccache-me () {
+    unset CC
+    unset CXX
+    unset CPP
+    path-remove /ccache/bin
+}
+#+END_SRC
+
+To gain access to my SSD on ~/ccache~ in the container I add to my =~/.wcdo/project-local.sh= this bit:
+
+#+BEGIN_SRC 
+if [ -d "/data/fast/bviren/ccache" ] ; then
+    wcdo_bindings="$wcdo_bindings /data/fast/bviren/ccache:/ccache"
+fi
+#+END_SRC
+
+Then, inside a container I do:
+
+#+BEGIN_EXAMPLE
+  $ bv-ccache-me
+#+END_EXAMPLE
+
+And configure/build as usual.  Note, the first build with ccache may
+be *slower* but subsequent rebuilds, even after a "clean" will be much
+faster.  For building WCT on 2x Xeon CPU E5-2630 v4 @ 2.20GHz here are
+some representative times for a clean build:
+
+#+BEGIN_EXAMPLE
+  $ ./wct clean
+  $ ./wct -p --notests
+#+END_EXAMPLE
+
+|--------+--------------+------------|
+| native | first ccache | subsequent |
+|--------+--------------+------------|
+| 44 s   | 55 s         | 6.4 s      |
+|--------+--------------+------------|
+
+

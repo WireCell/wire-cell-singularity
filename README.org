@@ -19,4 +19,4 @@ However, before starting be sure you satisfy a these prerequisites:
      network file system in the form of UPS binary "products" provided
      by Fermilab.  
 
-
+- [[./tips.org][tips]] :: some ideas for how to effectively use wcdo, singularity and CVMFS.
