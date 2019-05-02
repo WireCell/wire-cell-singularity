@@ -36,6 +36,24 @@ path-append () {
     export $PATHVARIABLE="${!PATHVARIABLE:+${!PATHVARIABLE}:}$1"
 }
 
+path-find () {
+    local IFS=':'
+    local DIR=''
+    local PATHVARIABLE="${2:-PATH}"
+    for DIR in ${!PATHVARIABLE}
+    do
+        local maybe="$DIR/$1"
+        if [ -f "$maybe" ] ; then
+            echo "$maybe"
+        fi
+    done
+    
+}
+
+fhicl-find () {
+    path-find $1 FHICL_FILE_PATH
+}
+
 
 
 
