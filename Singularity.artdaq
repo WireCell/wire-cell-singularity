@@ -1,4 +1,4 @@
-## Scientific Linux 7 Kitchen Sink version
+## Scientific Linux 7 for artdaq
 
 BootStrap: yum
 OSVersion: 7
@@ -21,6 +21,7 @@ rpm -Uvh https://repo.opensciencegrid.org/osg/3.4/osg-3.4-el7-release-latest.rpm
 yum -y install osg-ca-certs vo-client
 yum -y install subversion asciidoc bzip2-devel fontconfig-devel freetype-devel gdbm-devel glew-devel ncurses-devel openldap-devel readline-devel autoconf automake libtool swig texinfo tcl-devel tk-devel xz-devel xmlto libcurl-devel libjpeg-turbo-devel libpng-devel libX11-devel libXext-devel libXft-devel libXi-devel libXrender-devel libXt-devel libXpm-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel perl-DBD-SQLite perl-ExtUtils-MakeMaker libgcc.i686 glibc-devel.i686 libstdc++.i686 libffi-devel
 yum -y install libxml2-devel unzip perl-ExtUtils-Embed
+yum -y install ruby ruby-irb java-11-openjdk xterm tcsh
 yum clean all
 pip install --upgrade pip
 pip install virtualenv
