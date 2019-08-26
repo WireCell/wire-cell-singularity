@@ -150,25 +150,26 @@ wcdo-wct-cfg () {
 wcdo-wct-source () {
     local acc="${1:-anonymous}" ;shift
     local br="${1:-master}" ;shift
-    wcdo-wct-one build "$wct_dev" "$acc" "$br"
+    wcdo-wct-one toolkit "$wct_dev" "$acc" "$br"
+    # wcdo-wct-one build "$wct_dev" "$acc" "$br"
 
-    pushd "$wct_dev"
+    # pushd "$wct_dev"
 
-    if [ "$acc" = "anonymous" ] ; then
-        ./switch-git-urls anon
-    else
-        ./switch-git-urls dev
-    fi
-    git checkout -b $br $br
-    git submodule init
-    git submodule update
-    if [ "$br" != "master" ] ; then
-        git submodule foreach git checkout -b $br origin/$br
-    else
-        git submodule foreach git checkout master
-    fi
-    git submodule foreach git pull origin $br
-    popd
+    # if [ "$acc" = "anonymous" ] ; then
+    #     ./switch-git-urls anon
+    # else
+    #     ./switch-git-urls dev
+    # fi
+    # git checkout -b $br $br
+    # git submodule init
+    # git submodule update
+    # if [ "$br" != "master" ] ; then
+    #     git submodule foreach git checkout -b $br origin/$br
+    # else
+    #     git submodule foreach git checkout master
+    # fi
+    # git submodule foreach git pull origin $br
+    # popd
 }
 wcdo-wct () {
     local acc="${1:-anonymous}" ;shift
