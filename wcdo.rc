@@ -473,17 +473,11 @@ wcdo-mrb-add-source () {
     mrb g "$pkg"
     cd "$pkg"
     local branch="${feature}-branch"
-    local featbr="feature/${feature}"
-    if git branch -a | grep "\b${featbr}\b" > /dev/null ; then
-        echo "wcdo-mrb-add-source: feature exists, using it: $feat"
-        git checkout "$featbr"
-    elif git branch -a | grep "\b$branch\b" > /dev/null ; then
+    if git branch -a | grep "\b$branch\b" > /dev/null ; then
         echo "wcdo-mrb-add-source: starting branch exists, using it: $branch"
-        git flow feature start "$feature" "$branch"
     else
         echo "wcdo-mrb-add-source: creating starting branch $branch and feature $tag"
         git checkout -b "$branch" "$committish"
-        git flow feature start "$feature" "$branch"
     fi
     popd > /dev/null 2>&1
 }
