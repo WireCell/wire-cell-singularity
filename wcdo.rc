@@ -437,11 +437,11 @@ wcdo-mrb-add-source-help () {
     cat 1>&2 <<EOF
 Add source packages to the MRB-controlled development area
 
-usage: wcdo-mrb-add-source <package> <feature> <commitish>
+usage: wcdo-mrb-add-source <package> <branch> <commitish>
 
         <package> the git repo and local directory name, eg "larwirecell"
-        <feature> the feature branch name, eg "myuser_myfeature"
-        <committish> the git commit or version tag or similar to start your feature branch"
+        <branch> a local branch name, eg "myuser_myfeature"
+        <committish> the git commit or version tag or similar to start your local branch"
 
         hint: "ups list -aK+ <packagename>"
 EOF
@@ -472,11 +472,11 @@ wcdo-mrb-add-source () {
     fi
     mrb g "$pkg"
     cd "$pkg"
-    local branch="${feature}-branch"
+    local branch="${feature}"
     if git branch -a | grep "\b$branch\b" > /dev/null ; then
         echo "wcdo-mrb-add-source: starting branch exists, using it: $branch"
     else
-        echo "wcdo-mrb-add-source: creating starting branch $branch and feature $tag"
+        echo "wcdo-mrb-add-source: creating starting branch $branch from $committish"
         git checkout -b "$branch" "$committish"
     fi
     popd > /dev/null 2>&1
